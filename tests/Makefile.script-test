@@ -1,0 +1,18 @@
+TESTS=$(wildcard ??-*.sh)
+TESTLOGS=$(sort $(patsubst %.sh,%.testlog,$(TESTS)))
+
+CONTIKI=../..
+
+all: clean summary
+
+summary: $(TESTLOGS)
+	@cat *.testlog > summary
+	@echo "========== Summary =========="
+	@cat summary
+
+%.testlog: %.sh
+	@echo "========== Running script test $(basename $@).sh =========="
+	@bash "$(basename $@).sh" "$(CONTIKI)"
+
+clean:
+	@rm -f *.*log report summary

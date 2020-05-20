@@ -1,0 +1,88 @@
+### Verbosity control. Use  make V=1 to get verbose builds.
+### Extends what we already have in the top-level Makefile
+ifeq ($(V),1)
+  TRACE_SREC_CAT =
+else
+  TRACE_SREC_CAT = @echo "  SREC_CAT " $< "-->" $@
+endif
+
+CC       = arm-none-eabi-gcc
+CPP      = arm-none-eabi-cpp
+LD       = arm-none-eabi-gcc
+AR       = arm-none-eabi-ar
+AS       = arm-none-eabi-gcc
+OBJCOPY  = arm-none-eabi-objcopy
+OBJDUMP  = arm-none-eabi-objdump
+NM       = arm-none-eabi-nm
+SIZE     = arm-none-eabi-size
+SREC_CAT = srec_cat
+
+CFLAGS += -mthumb -mabi=aapcs -mlittle-endian
+CFLAGS += -Wall
+CFLAGS += -std=c99
+CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
+CFLAGS += -fshort-enums -fomit-frame-pointer -fno-builtin
+ifeq ($(WERROR),1)
+  CFLAGS += -Werror
+endif
+
+### Pass CFLAGS along to assembly files in the build
+ASFLAGS += $(CFLAGS)
+### Specify '-c' option to assemble only and not link
+ASFLAGS += -c 
+
+LDFLAGS += -mthumb -mlittle-endian
+
+OBJDUMP_FLAGS += --disassemble --source --disassembler-options=force-thumb
+
+### Are we building with code size optimisations?
+SMALL ?= 1
+ifeq ($(SMALL),1)
+  CFLAGS += -Os
+else
+  CFLAGS += -O2
+endif
+
+### Use CMSIS from arch/cpu/arm/common
+CONTIKI_ARM_DIRS += . 
+CONTIKI_CPU_DIRS += $(addprefix ../arm/, $(CONTIKI_ARM_DIRS))
+
+### Default to use os/lib/dbg-io unless configured to do otherwise
+MAKE_WITH_LIB_DBG_IO ?= 1
+
+ifeq ($(MAKE_WITH_LIB_DBG_IO),1)
+  MODULES += os/lib/dbg-io
+endif
+
+### CPU-dependent cleanup files
+CLEAN += *.elf *.bin *.lst *.hex *.i16hex
+
+OUT_HEX = $(BUILD_DIR_BOARD)/%.hex
+OUT_I16HEX = $(BUILD_DIR_BOARD)/%.i16hex
+OUT_BIN = $(BUILD_DIR_BOARD)/%.bin
+OUT_LST = $(BUILD_DIR_BOARD)/%.lst
+
+### Don't treat the following files as intermediate
+.PRECIOUS: $(OUT_ELF) $(OUT_HEX) $(OUT_BIN)
+
+$(OUT_I16HEX): $(OUT_ELF)
+	$(TRACE_OBJCOPY)
+	$(Q)$(OBJCOPY) -O ihex $< $@
+
+$(OUT_HEX): $(OUT_I16HEX)
+	$(TRACE_SREC_CAT)
+	$(Q)$(SREC_CAT) $< -intel -o $@ -intel
+
+$(OUT_BIN): $(OUT_ELF)
+	$(TRACE_OBJCOPY)
+	$(Q)$(OBJCOPY) -O binary $(OBJCOPY_FLAGS) $< $@
+
+$(OUT_LST): $(OUT_ELF)
+	$(TRACE_OBJDUMP)
+	$(Q)$(OBJDUMP) $(OBJDUMP_FLAGS) $< > $@
+
+### We don't really need the .hex and .bin for the .$(TARGET) but let's make
+### sure they get built
+$(BUILD_DIR_BOARD)/%.$(TARGET): $(OUT_ELF) $(OUT_HEX) $(OUT_BIN)
+	$(TRACE_CP)
+	$(Q)cp $< $@

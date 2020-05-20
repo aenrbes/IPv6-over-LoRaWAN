@@ -1,0 +1,14 @@
+# This Makefile can be used to identify the selected TARGET used for a
+# specific build. It can be included by example Makefiles that need to take
+# decisions based on TARGET. It is also automatically included by the
+# top-level Makefile.include.
+
+ifeq ($(TARGET),)
+  -include Makefile.target
+  ifeq ($(TARGET),)
+    ${info TARGET not defined, using target 'native'}
+    TARGET=native
+  else
+    ${info using saved target '$(TARGET)'}
+  endif
+endif

@@ -1,0 +1,9 @@
+CONTIKI_ARM_DIRS += cortex-m/cm3
+
+CFLAGS += -mcpu=cortex-m3
+
+LDFLAGS += -mcpu=cortex-m3 -nostartfiles
+
+TARGET_LIBFILES += -lm
+
+include $(CONTIKI)/$(CONTIKI_NG_CORTEX_DIR)/Makefile.cortex-m
