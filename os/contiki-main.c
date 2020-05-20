@@ -57,6 +57,8 @@
 #include "services/simple-energest/simple-energest.h"
 #include "services/tsch-cs/tsch-cs.h"
 
+#include "uart.h"
+
 #include <stdio.h>
 #include <stdint.h>
 /*---------------------------------------------------------------------------*/
@@ -65,6 +67,9 @@
 #define LOG_MODULE "Main"
 #define LOG_LEVEL LOG_LEVEL_MAIN
 /*---------------------------------------------------------------------------*/
+
+extern Uart_t Uart1;
+
 int
 #if PLATFORM_MAIN_ACCEPTS_ARGS
 main(int argc, char **argv)
@@ -75,6 +80,11 @@ main(void)
 {
 #endif
   platform_init_stage_one();
+
+  UartPutChar(&Uart1, '=');
+  UartPutChar(&Uart1, '\n');
+
+  printf("clock_init...\n");
 
   clock_init();
   rtimer_init();
@@ -140,6 +150,7 @@ main(void)
 
 #if BUILD_WITH_SHELL
   serial_shell_init();
+  printf("----------shell_init--------\n");
   LOG_DBG("With Shell\n");
 #endif /* BUILD_WITH_SHELL */
 
@@ -165,7 +176,7 @@ main(void)
   autostart_start(autostart_processes);
 
   watchdog_start();
-
+  printf("---main_loop enter---\n");
 #if PLATFORM_PROVIDES_MAIN_LOOP
   platform_main_loop();
 #else

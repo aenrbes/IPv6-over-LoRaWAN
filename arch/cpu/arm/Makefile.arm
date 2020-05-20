@@ -19,11 +19,12 @@ SREC_CAT = srec_cat
 
 CFLAGS += -mthumb -mabi=aapcs -mlittle-endian
 CFLAGS += -Wall
-CFLAGS += -std=c99
+CFLAGS += -std=gnu11
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
-CFLAGS += -fshort-enums -fomit-frame-pointer -fno-builtin
+CFLAGS += -fomit-frame-pointer -fno-builtin
+CFLAGS += -fno-unroll-loops -ffast-math -ftree-vectorize
 ifeq ($(WERROR),1)
-  CFLAGS += -Werror
+  CFLAGS += -Wall
 endif
 
 ### Pass CFLAGS along to assembly files in the build
@@ -38,9 +39,9 @@ OBJDUMP_FLAGS += --disassemble --source --disassembler-options=force-thumb
 ### Are we building with code size optimisations?
 SMALL ?= 1
 ifeq ($(SMALL),1)
-  CFLAGS += -Os
+  CFLAGS += -O0
 else
-  CFLAGS += -O2
+  CFLAGS += -O0
 endif
 
 ### Use CMSIS from arch/cpu/arm/common
@@ -69,9 +70,13 @@ $(OUT_I16HEX): $(OUT_ELF)
 	$(TRACE_OBJCOPY)
 	$(Q)$(OBJCOPY) -O ihex $< $@
 
-$(OUT_HEX): $(OUT_I16HEX)
-	$(TRACE_SREC_CAT)
-	$(Q)$(SREC_CAT) $< -intel -o $@ -intel
+$(OUT_HEX): $(OUT_ELF)
+	$(TRACE_OBJCOPY)
+	$(Q)$(OBJCOPY) -O ihex $< $@
+
+#$(OUT_HEX): $(OUT_I16HEX)
+#	$(TRACE_SREC_CAT)
+#	$(Q)$(SREC_CAT) $< -intel -o $@ -intel
 
 $(OUT_BIN): $(OUT_ELF)
 	$(TRACE_OBJCOPY)
@@ -86,3 +91,4 @@ $(OUT_LST): $(OUT_ELF)
 $(BUILD_DIR_BOARD)/%.$(TARGET): $(OUT_ELF) $(OUT_HEX) $(OUT_BIN)
 	$(TRACE_CP)
 	$(Q)cp $< $@
+	echo ------------BUILD_DIR_BOARD.?TARGET

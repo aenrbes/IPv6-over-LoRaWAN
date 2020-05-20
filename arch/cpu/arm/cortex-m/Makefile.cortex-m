@@ -1,11 +1,11 @@
-CONTIKI_ARM_DIRS += cortex-m cortex-m/CMSIS
+CONTIKI_ARM_DIRS += cortex-m
 
 ### Build syscalls for newlib
-MODULES += os/lib/newlib
+# MODULES += os/lib/newlib
 
 LDFLAGS += -T $(LDSCRIPT)
 LDFLAGS += -Wl,--gc-sections,--sort-section=alignment
-LDFLAGS += -Wl,-Map=$(CONTIKI_NG_PROJECT_MAP),--cref,--no-warn-mismatch
+LDFLAGS += -Wl,-Map=$(CONTIKI_NG_PROJECT_MAP),--cref
 
 OBJCOPY_FLAGS += --gap-fill 0xff
 
@@ -22,7 +22,9 @@ OUT_ELF = $(BUILD_DIR_BOARD)/%.elf
 .SECONDEXPANSION:
 
 $(OUT_ELF): $(CPU_STARTFILES) $$(CONTIKI_OBJECTFILES) %.o $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) $(LDSCRIPT) $(TARGET_LIBS)
+	echo ----------ld OUT_ELF start
 	$(TRACE_LD)
-	$(Q)$(LD) $(LDFLAGS) ${filter-out $(LDSCRIPT) %.a,$^} ${filter %.a,$^} $(TARGET_LIBFLAGS) -o $@
+	$(LD) $(LDFLAGS) -Wl,--start-group ${filter-out $(LDSCRIPT) %.a,$^} ${filter %.a,$^} -Wl,--end-group $(TARGET_LIBFLAGS) -o $@
+	echo ----------ld OUT_ELF end
 
 include $(CONTIKI)/$(CONTIKI_NG_ARM_DIR)/Makefile.arm

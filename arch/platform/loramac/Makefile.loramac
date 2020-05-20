@@ -1,0 +1,18 @@
+# cc2538dk platform makefile
+
+ifndef CONTIKI
+  $(error CONTIKI not defined! You must specify where CONTIKI resides!)
+endif
+
+CONTIKI_TARGET_DIRS = . loramac
+
+CONTIKI_TARGET_SOURCEFILES += platform.c
+CONTIKI_TARGET_SOURCEFILES += loramac.c loramac-output.c
+
+CONTIKI_SOURCEFILES += $(CONTIKI_TARGET_SOURCEFILES)
+
+
+### Define the CPU directory
+CONTIKI_CPU = $(CONTIKI_NG_RELOC_CPU_DIR)/loramac
+include $(CONTIKI_CPU)/Makefile.loramac
+

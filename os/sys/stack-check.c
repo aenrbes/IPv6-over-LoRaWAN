@@ -45,6 +45,7 @@
 #include "dev/watchdog.h"
 #include <string.h>
 #include <inttypes.h>
+#include <stdio.h>
 
 #include "sys/log.h"
 #define LOG_MODULE "Stack"
@@ -86,6 +87,8 @@ stack_check_init(void)
     *p++ = STACK_FILL;
   }
 
+  printf("stack start:%x, end:%x\n", &_stack, stack_top);
+
 #if STACK_CHECK_PERIODIC_CHECKS
   /* Start the periodic checker process */
   process_start(&stack_check_process, NULL);
@@ -96,31 +99,42 @@ int32_t
 stack_check_get_usage(void)
 {
   uint8_t *p = &_stack;
-
+  size_t stack_usage;
   /* Make sure WDT is not triggered */
   watchdog_periodic();
 
   /* Skip the bytes used after heap; it's 1 byte by default for _stack,
    * more than that means dynamic memory allocation is used somewhere.
    */
-  while(*p != STACK_FILL && p < (uint8_t *)GET_STACK_ORIGIN()) {
+
+//  while(*p != STACK_FILL && p < (uint8_t *)GET_STACK_ORIGIN()) {
+//    p++;
+//  }
+
+  /* Skip the region of the memory reserved for the stack not used yet by the program */
+//  while(*p == STACK_FILL && p < (uint8_t *)GET_STACK_ORIGIN()) {
+//    p++;
+//  }
+  stack_usage = 0;
+  while(p < (uint8_t *)GET_STACK_ORIGIN()) {
+    if(*p != STACK_FILL) {
+      stack_usage++;
+    }
     p++;
   }
 
-  /* Skip the region of the memory reserved for the stack not used yet by the program */
-  while(*p == STACK_FILL && p < (uint8_t *)GET_STACK_ORIGIN()) {
-    p++;
-  }
+  printf("stack usage:%d, top:%x\n", stack_usage, GET_STACK_ORIGIN());
 
   /* Make sure WDT is not triggered */
   watchdog_periodic();
 
-  if(p >= (uint8_t*)GET_STACK_ORIGIN()) {
-    /* This means the stack is screwed. */
-    return -1;
-  }
+//  if(p >= (uint8_t*)GET_STACK_ORIGIN()) {
+//    /* This means the stack is screwed. */
+//    return -1;
+//  }
 
-  return (uint8_t *)GET_STACK_ORIGIN() - p;
+//  return (uint8_t *)GET_STACK_ORIGIN() - p;
+  return (int32_t)stack_usage;
 }
 /*---------------------------------------------------------------------------*/
 int32_t

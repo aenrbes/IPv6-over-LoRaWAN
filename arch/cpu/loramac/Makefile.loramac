@@ -1,0 +1,99 @@
+LDSCRIPT = $(CONTIKI_CPU)/STM32L151CCUX_FLASH.ld
+
+### If the user-specified a Node ID, pass a define
+ifdef NODEID
+  CFLAGS += -DIEEE_ADDR_NODE_ID=$(NODEID)
+endif
+
+CFLAGS += -DUSE_HAL_DRIVER -DSTM32L151xC -DUSE_BAND_470 -DUSE_DEBUGGER
+CFLAGS += -I$(CONTIKI_CPU)/mac/Inc
+CFLAGS += -I$(CONTIKI_CPU)/STM32_HAL_Drivers/CMSIS/Include
+CFLAGS += -I$(CONTIKI_CPU)/STM32_HAL_Drivers/STM32L1xx_HAL_Driver/Inc
+CFLAGS += -I$(CONTIKI_CPU)/STM32_HAL_Drivers/CMSIS/Device/ST/STM32L1xx/Include
+CFLAGS += -I$(CONTIKI_CPU)/STM32_HAL_Drivers/STM32L1xx_HAL_Driver/Inc/Legacy
+CFLAGS += -I$(CONTIKI_CPU)/STM32_USB_Device_Library/Class/CDC/Inc
+CFLAGS += -I$(CONTIKI_CPU)/STM32_USB_Device_Library/Core/Inc
+
+LDFLAGS += --specs=nosys.specs -static --specs=nano.specs -Wall
+
+### CPU-dependent directories
+CONTIKI_CPU_DIRS = .
+CONTIKI_CPU_DIRS += mac
+CONTIKI_CPU_DIRS += STM32_USB_Device_Library/Core/Src
+CONTIKI_CPU_DIRS += STM32_USB_Device_Library/Class/CDC/Src/
+CONTIKI_CPU_DIRS += STM32_HAL_Drivers/STM32L1xx_HAL_Driver/Src/
+
+### CPU-dependent source files
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_cortex.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_dma.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_flash.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_flash_ex.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_flash_ramfunc.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_gpio.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_pcd.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_pcd_ex.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_pwr.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_pwr_ex.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_rcc.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_rcc_ex.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_rtc.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_rtc_ex.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_spi.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_tim.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_tim_ex.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_uart.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_ll_usb.c
+CONTIKI_CPU_SOURCEFILES += usbd_cdc.c
+CONTIKI_CPU_SOURCEFILES += usbd_core.c
+CONTIKI_CPU_SOURCEFILES += usbd_ctlreq.c
+CONTIKI_CPU_SOURCEFILES += usbd_ioreq.c
+CONTIKI_CPU_SOURCEFILES += LoRaMac.c
+CONTIKI_CPU_SOURCEFILES += LoRaMacCrypto.c
+CONTIKI_CPU_SOURCEFILES += aes.c
+CONTIKI_CPU_SOURCEFILES += board.c
+CONTIKI_CPU_SOURCEFILES += cmac.c
+CONTIKI_CPU_SOURCEFILES += delay.c
+CONTIKI_CPU_SOURCEFILES += fifo.c
+CONTIKI_CPU_SOURCEFILES += gpio-board.c
+CONTIKI_CPU_SOURCEFILES += gpio.c
+CONTIKI_CPU_SOURCEFILES += main.c
+CONTIKI_CPU_SOURCEFILES += rtc-board.c
+CONTIKI_CPU_SOURCEFILES += spi-board.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_hal_msp.c
+CONTIKI_CPU_SOURCEFILES += stm32l1xx_it.c
+CONTIKI_CPU_SOURCEFILES += sx1276-board.c
+CONTIKI_CPU_SOURCEFILES += sx1276.c
+CONTIKI_CPU_SOURCEFILES += sysIrqHandlers.c
+CONTIKI_CPU_SOURCEFILES += syscalls.c
+CONTIKI_CPU_SOURCEFILES += sysmem.c
+CONTIKI_CPU_SOURCEFILES += system_stm32l1xx.c
+CONTIKI_CPU_SOURCEFILES += lora-timer.c
+CONTIKI_CPU_SOURCEFILES += uart-board.c
+CONTIKI_CPU_SOURCEFILES += uart.c
+CONTIKI_CPU_SOURCEFILES += usb_device.c
+CONTIKI_CPU_SOURCEFILES += usbd_cdc_if.c
+CONTIKI_CPU_SOURCEFILES += usbd_conf.c
+CONTIKI_CPU_SOURCEFILES += usbd_desc.c
+CONTIKI_CPU_SOURCEFILES += utilities.c
+
+CONTIKI_CPU_SOURCEFILES += clock.c rtimer-arch.c watchdog.c
+CONTIKI_CPU_SOURCEFILES += int-master.c dbg.c
+CONTIKI_CPU_SOURCEFILES += ieee-addr.c
+
+CPU_START_SOURCEFILES = startup_stm32l151ccux.s
+
+CONTIKI_SOURCEFILES += $(CONTIKI_CPU_SOURCEFILES)
+
+MAKE_MAC = MAKE_MAC_OTHER
+MAKE_ROUTING = MAKE_ROUTING_NULLROUTING
+
+### Always re-build ieee-addr.o in case the command line passes a new NODEID
+FORCE:
+
+$(OBJECTDIR)/ieee-addr.o: ieee-addr.c FORCE | $(OBJECTDIR)
+	$(TRACE_CC)
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
+
+include $(CONTIKI)/$(CONTIKI_NG_CM3_DIR)/Makefile.cm3
+

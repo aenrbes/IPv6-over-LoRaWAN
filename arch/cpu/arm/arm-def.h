@@ -48,7 +48,7 @@
  * Those values are not meant to be modified by the user
  * @{
  */
-#define CLOCK_CONF_SECOND 128
+#define CLOCK_CONF_SECOND 1000
 
 /* Clock (time) comparison macro */
 #define CLOCK_LT(a, b)  ((signed long)((a) - (b)) < 0)
