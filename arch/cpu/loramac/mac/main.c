@@ -41,7 +41,7 @@ extern Gpio_t	EN_Vext;
 /*!
  * LoRaWAN confirmed messages
  */
-#define LORAWAN_CONFIRMED_MSG_ON                    false
+#define LORAWAN_CONFIRMED_MSG_ON                    true
 
 /*!
  * LoRaWAN Adaptive Data Rate
@@ -687,6 +687,10 @@ void LoRaMacProcessLoopOnes( void )
                 mibReq.Param.EnablePublicNetwork = LORAWAN_PUBLIC_NETWORK;
                 LoRaMacMibSetRequestConfirm( &mibReq );
 
+                mibReq.Type = MIB_DEVICE_CLASS;
+                mibReq.Param.Class = CLASS_C;
+                LoRaMacMibSetRequestConfirm( &mibReq );
+
 #if defined( USE_BAND_868 )
                 LoRaMacTestSetDutyCycleOn( LORAWAN_DUTYCYCLE_ON );
 
@@ -770,6 +774,15 @@ void LoRaMacProcessLoopOnes( void )
             }
             case DEVICE_STATE_SEND:
             {
+                            mibReq.Type = MIB_DEVICE_CLASS;
+                            LoRaMacMibGetRequestConfirm( &mibReq );
+
+                            if( mibReq.Param.Class!= CLASS_C )
+                            {
+                                mibReq.Param.Class = CLASS_C;
+                                LoRaMacMibSetRequestConfirm( &mibReq );
+                            }
+
 				DebugPrintf("Into send state\r\n");
 				if( NextTx == true && LoRaMacPacketEmpty == false )
 				{

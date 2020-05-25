@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Swedish Institute of Computer Science.
+ * Copyright (c) 2011, Swedish Institute of Computer Science.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,115 +25,136 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * This file is part of the Contiki operating system.
- *
  */
 
 /**
  * \file
-*         The 802.15.4 standard LORAMAC protocol (nonbeacon-enabled)
+ *         A null RDC implementation that uses framer for headers and sends
+ *         the packets over slip instead of radio.
  * \author
  *         Adam Dunkels <adam@sics.se>
- *         Simon Duquennoy <simon.duquennoy@inria.fr>
+ *         Joakim Eriksson <joakime@sics.se>
+ *         Niclas Finne <nfi@sics.se>
  */
 
-#include "loramac/loramac.h"
-#include "loramac/loramac-output.h"
 #include "net/packetbuf.h"
+#include "net/queuebuf.h"
 #include "net/netstack.h"
-
-/* Log configuration */
-#include "sys/log.h"
-#define LOG_MODULE "LORAMAC"
-#define LOG_LEVEL LOG_LEVEL_MAC
-
-static uint8_t default_lorawan_server_lladdr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 };
-
-PROCESS(loramac_recv_process, "loramac recv process");
-
-static void input_packet(void);
+#include "border-router.h"
+#include <string.h>
 
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(loramac_recv_process, ev, data)
+/* Log configuration */
+#include "sys/log.h"
+#define LOG_MODULE "BR-MAC"
+#define LOG_LEVEL LOG_LEVEL_INFO
+
+#define MAX_CALLBACKS 16
+
+/* a structure for calling back when packet data is coming back
+   from radio... */
+struct tx_callback {
+  mac_callback_t cback;
+  void *ptr;
+  struct packetbuf_attr attrs[PACKETBUF_NUM_ATTRS];
+  struct packetbuf_addr addrs[PACKETBUF_NUM_ADDRS];
+};
+
+static struct tx_callback send_callback;
+/*---------------------------------------------------------------------------*/
+
+void
+packet_sent(uint8_t status, uint8_t tx)
 {
-  PROCESS_BEGIN();
-  LOG_INFO("loramac_recv_process init...\n");
-
-  while(1) {
-    PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
+    struct tx_callback *callback;
+    callback = &send_callback;
     packetbuf_clear();
-    memcpy(packetbuf_dataptr(), LoRaMacRecvBuffer, LoRaMacRecvLength);
-    LoRaMacRecvPending = false;
-
-    if(LoRaMacRecvLength > 0) {
-      packetbuf_set_datalen(LoRaMacRecvLength);
-      input_packet();
-    }
-  }
-  PROCESS_END();
+    packetbuf_attr_copyfrom(callback->attrs, callback->addrs);
+    mac_call_sent_callback(callback->cback, callback->ptr, status, tx);
 }
+/*---------------------------------------------------------------------------*/
+static void
+setup_callback(mac_callback_t sent, void *ptr)
+{
+  struct tx_callback *callback;
+  callback = &send_callback;
+  callback->cback = sent;
+  callback->ptr = ptr;
+  packetbuf_attr_copyto(callback->attrs, callback->addrs);
 
+  return;
+}
 /*---------------------------------------------------------------------------*/
 static void
 send_packet(mac_callback_t sent, void *ptr)
 {
-  if(packetbuf_totlen() > PACKETBUF_SIZE) {
+  uint8_t buf[PACKETBUF_SIZE];
+  char devEUI[17] = "\0";
+
+  const linkaddr_t *lladdr = packetbuf_addr(PACKETBUF_ADDR_RECEIVER);
+
+  sprintf(devEUI, "%02x%02x%02x%02x%02x%02x%02x%02x", 
+                                            lladdr->u8[0],
+                                            lladdr->u8[1],
+                                            lladdr->u8[2],
+                                            lladdr->u8[3],
+                                            lladdr->u8[4],
+                                            lladdr->u8[5],
+                                            lladdr->u8[6],
+                                            lladdr->u8[7]);
+
+  LOG_INFO("devEUI: %s\n", devEUI);
+
+  LOG_INFO("sending packet (%u bytes)\n", packetbuf_datalen());
+
+  if(packetbuf_totlen() > sizeof(buf)) {
     LOG_WARN("send failed, too large header\n");
     mac_call_sent_callback(sent, ptr, MAC_TX_ERR_FATAL, 1);
   } else {
-    loramac_output_packet(sent, ptr);
+    setup_callback(sent, ptr);
+
+    /* Copy packet data */
+    memcpy(&buf[0], packetbuf_dataptr(), packetbuf_datalen());
+
+    write_to_slip(devEUI, buf, packetbuf_datalen());
   }
 }
 /*---------------------------------------------------------------------------*/
 static void
-input_packet(void)
+packet_input(void)
 {
-  linkaddr_t addr;
-
-  memcpy(addr.u8, default_lorawan_server_lladdr, sizeof(addr.u8));
-  packetbuf_set_addr(PACKETBUF_ADDR_SENDER, &addr);
-  packetbuf_set_addr(PACKETBUF_ADDR_RECEIVER, &linkaddr_node_addr);
-
-  packetbuf_set_attr(PACKETBUF_ATTR_RSSI, -40);
-
-  LOG_INFO("received packet from ");
-  LOG_INFO_LLADDR(packetbuf_addr(PACKETBUF_ADDR_SENDER));
-  LOG_INFO_("len %u\n", packetbuf_datalen());
   NETSTACK_NETWORK.input();
 }
 /*---------------------------------------------------------------------------*/
 static int
 on(void)
 {
-  return 0;
+  return 1;
 }
 /*---------------------------------------------------------------------------*/
 static int
-off(void)
+off()
 {
-  return 0;
+  return 1;
+}
+/*---------------------------------------------------------------------------*/
+static int
+max_payload()
+{
+  return 128;
 }
 /*---------------------------------------------------------------------------*/
 static void
 init(void)
 {
-  process_start(&loramac_recv_process, NULL);
-  loramac_output_init();
-  on();
+
 }
 /*---------------------------------------------------------------------------*/
-static int
-max_payload(void)
-{
-  return LORAWAN_APP_DATA_MAX_SIZE;
-}
-/*---------------------------------------------------------------------------*/
-const struct mac_driver loramac_driver = {
-  "LORAMAC",
+const struct mac_driver border_router_mac_driver = {
+  "br-mac",
   init,
   send_packet,
-  input_packet,
+  packet_input,
   on,
   off,
   max_payload,

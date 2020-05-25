@@ -76,7 +76,7 @@ extern bool LoRaMacRecvPending;
 
 extern Uart_t Uart1;
 
-extern struct process loramac_recv_process;
+PROCESS_NAME(loramac_recv_process);
 /*---------------------------------------------------------------------------*/
 static void
 set_lladdr(void)
@@ -109,7 +109,7 @@ set_global_address(void)
 
   /* set the PREFIX::1 address to the IF */
   uip_ip6addr_copy(&ipaddr, default_prefix);
-  ipaddr.u8[15] = 1;
+  ipaddr.u8[15] = 2;
   uip_ds6_defrt_add(&ipaddr, 0);
 }
 /*---------------------------------------------------------------------------*/

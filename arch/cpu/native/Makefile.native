@@ -20,6 +20,7 @@ endif
 CFLAGSNO = -Wall -g -I/usr/local/include $(CFLAGSWERROR)
 CFLAGS  += $(CFLAGSNO)
 
+
 ### Are we building with code size optimisations?
 SMALL ?= 0
 

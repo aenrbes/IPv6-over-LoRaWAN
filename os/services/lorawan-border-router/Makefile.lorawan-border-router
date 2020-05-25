@@ -1,0 +1,5 @@
+include $(CONTIKI)/Makefile.identify-target
+
+# Include BR variant depending on platform and also generic BR code for all
+# embedded platforms
+MODULES += os/services/lorawan-border-router/native

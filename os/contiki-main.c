@@ -51,13 +51,12 @@
 #include "net/queuebuf.h"
 #include "net/app-layer/coap/coap-engine.h"
 #include "net/app-layer/snmp/snmp.h"
-#include "services/rpl-border-router/rpl-border-router.h"
+//#include "services/rpl-border-router/rpl-border-router.h"
+#include "services/lorawan-border-router/lorawan-border-router.h"
 #include "services/orchestra/orchestra.h"
 #include "services/shell/serial-shell.h"
 #include "services/simple-energest/simple-energest.h"
 #include "services/tsch-cs/tsch-cs.h"
-
-#include "uart.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -67,8 +66,6 @@
 #define LOG_MODULE "Main"
 #define LOG_LEVEL LOG_LEVEL_MAIN
 /*---------------------------------------------------------------------------*/
-
-extern Uart_t Uart1;
 
 int
 #if PLATFORM_MAIN_ACCEPTS_ARGS
@@ -80,9 +77,6 @@ main(void)
 {
 #endif
   platform_init_stage_one();
-
-  UartPutChar(&Uart1, '=');
-  UartPutChar(&Uart1, '\n');
 
   printf("clock_init...\n");
 
@@ -142,6 +136,11 @@ main(void)
   rpl_border_router_init();
   LOG_DBG("With RPL Border Router\n");
 #endif /* BUILD_WITH_RPL_BORDER_ROUTER */
+
+#if BUILD_WITH_LORAWAN_BORDER_ROUTER
+  lorawan_border_router_init();
+  LOG_DBG("With LORAWAN Border Router\n");
+#endif /* BUILD_WITH_LORAWAN_BORDER_ROUTER */
 
 #if BUILD_WITH_ORCHESTRA
   orchestra_init();

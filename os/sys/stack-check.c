@@ -87,7 +87,7 @@ stack_check_init(void)
     *p++ = STACK_FILL;
   }
 
-  printf("stack start:%x, end:%x\n", &_stack, stack_top);
+  printf("stack start:%x, end:%x\n", (unsigned int)(long)&_stack, (unsigned int)(long)stack_top);
 
 #if STACK_CHECK_PERIODIC_CHECKS
   /* Start the periodic checker process */
@@ -123,7 +123,7 @@ stack_check_get_usage(void)
     p++;
   }
 
-  printf("stack usage:%d, top:%x\n", stack_usage, GET_STACK_ORIGIN());
+  printf("stack usage:%d, top:%x\n", (unsigned int)stack_usage, (unsigned int)(long)GET_STACK_ORIGIN());
 
   /* Make sure WDT is not triggered */
   watchdog_periodic();

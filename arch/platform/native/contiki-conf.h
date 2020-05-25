@@ -76,8 +76,6 @@ typedef unsigned int uip_stats_t;
 #define NETSTACK_CONF_RADIO   nullradio_driver
 #endif /* NETSTACK_CONF_RADIO */
 
-#define NETSTACK_CONF_LINUXRADIO_DEV "wpan0"
-
 /* configure network size and density */
 #ifndef NETSTACK_MAX_ROUTE_ENTRIES
 #define NETSTACK_MAX_ROUTE_ENTRIES   300
@@ -102,7 +100,6 @@ typedef unsigned long clock_time_t;
 
 #define CLOCK_CONF_SECOND 1000
 
-#define LOG_CONF_ENABLED 1
 
 #define PLATFORM_SUPPORTS_BUTTON_HAL 1
 

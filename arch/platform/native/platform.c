@@ -68,6 +68,8 @@
 #include "net/ipv6/uip-ds6.h"
 #endif /* NETSTACK_CONF_WITH_IPV6 */
 
+#include <mosquitto.h>
+
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "Native"
@@ -119,6 +121,10 @@ static uint8_t mac_addr[] = PLATFORM_CONF_MAC_ADDR;
 #else /* PLATFORM_CONF_MAC_ADDR */
 static uint8_t mac_addr[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
 #endif /* PLATFORM_CONF_MAC_ADDR */
+
+extern struct mosquitto *mosq;
+extern bool lorawan_recv_pending;
+PROCESS_NAME(lorawan_recv_process);
 
 /*---------------------------------------------------------------------------*/
 int
@@ -327,6 +333,19 @@ platform_main_loop()
         }
       }
     }
+#if BUILD_WITH_LORAWAN_BORDER_ROUTER
+    if(lorawan_recv_pending == true) {
+      process_poll(&lorawan_recv_process);
+    }
+
+
+//		if(mosquitto_loop(mosq, -1, 1) != MOSQ_ERR_SUCCESS){
+//      mosquitto_destroy(mosq);
+//      mosquitto_lib_cleanup();
+//      return;
+//    }
+
+#endif /* BUILD_WITH_LORAWAN_BORDER_ROUTER */
 
     etimer_request_poll();
   }

@@ -732,7 +732,7 @@ uip_ds6_send_ra_periodic(void)
 void
 uip_ds6_send_rs(void)
 {
-  if((uip_ds6_defrt_choose() == NULL)
+  if((0 /* (uip_ds6_defrt_choose() == NULL */)
      && (rscount < UIP_ND6_MAX_RTR_SOLICITATIONS)) {
     LOG_INFO("Sending RS %u\n", rscount);
     uip_nd6_rs_output();
