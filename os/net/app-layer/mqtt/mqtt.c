@@ -164,7 +164,7 @@ typedef enum {
 #define MQTT_MID_SIZE 2
 #define MQTT_QOS_SIZE 1
 /*---------------------------------------------------------------------------*/
-#define RESPONSE_WAIT_TIMEOUT (CLOCK_SECOND * 10)
+#define RESPONSE_WAIT_TIMEOUT (CLOCK_SECOND * 60)
 /*---------------------------------------------------------------------------*/
 #define INCREMENT_MID(conn)   (conn)->mid_counter += 2
 #define MQTT_STRING_LENGTH(s) (((s)->length) == 0 ? 0 : (MQTT_STRING_LEN_SIZE + (s)->length))
@@ -538,7 +538,7 @@ PT_THREAD(disconnect_pt(struct pt *pt, struct mqtt_connection *conn))
    * we do want the TCP/IP stack to actually send this disconnect before we
    * tear down the session.
    */
-  timer_set(&conn->t, (CLOCK_SECOND * 2));
+  timer_set(&conn->t, (CLOCK_SECOND * 35));
   PT_WAIT_UNTIL(pt, conn->out_buffer_sent || timer_expired(&conn->t));
 
   PT_END(pt);

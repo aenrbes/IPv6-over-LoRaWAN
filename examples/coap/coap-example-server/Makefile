@@ -1,6 +1,8 @@
 CONTIKI_PROJECT = coap-example-server
 all: $(CONTIKI_PROJECT)
 
+TARGET = loramac
+
 # Do not try to build on Sky because of code size limitation
 PLATFORMS_EXCLUDE = sky z1
 

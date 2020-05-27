@@ -147,6 +147,7 @@ uip_ds6_init(void)
   uip_create_linklocal_prefix(&loc_fipaddr);
 #if UIP_CONF_ROUTER
   uip_ds6_prefix_add(&loc_fipaddr, UIP_DEFAULT_PREFIX_LEN, 0, 0, 0, 0);
+  uip_ds6_prefix_add(&default_prefix, 8, 0, 0, 0, 0);
 #else /* UIP_CONF_ROUTER */
   uip_ds6_prefix_add(&loc_fipaddr, UIP_DEFAULT_PREFIX_LEN, 0);
 #endif /* UIP_CONF_ROUTER */
@@ -349,6 +350,15 @@ uip_ds6_is_addr_onlink(uip_ipaddr_t *ipaddr)
       locprefix < uip_ds6_prefix_list + UIP_DS6_PREFIX_NB; locprefix++) {
     if(locprefix->isused &&
        uip_ipaddr_prefixcmp(&locprefix->ipaddr, ipaddr, locprefix->length)) {
+#if UIP_CONF_ROUTER
+          extern uip_ipaddr_t host_ipaddr;
+          if(uip_ipaddr_cmp(ipaddr, &host_ipaddr)) {
+            LOG_INFO("output: destination is host ip ");
+            LOG_INFO_6ADDR(ipaddr);
+            LOG_INFO_("\n");
+            return 0;
+          }
+#endif
       return 1;
     }
   }
@@ -732,7 +742,7 @@ uip_ds6_send_ra_periodic(void)
 void
 uip_ds6_send_rs(void)
 {
-  if((0 /* (uip_ds6_defrt_choose() == NULL */)
+  if((uip_ds6_defrt_choose() == NULL)
      && (rscount < UIP_ND6_MAX_RTR_SOLICITATIONS)) {
     LOG_INFO("Sending RS %u\n", rscount);
     uip_nd6_rs_output();

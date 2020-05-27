@@ -48,7 +48,7 @@
 #define LOG_MODULE "LORAMAC"
 #define LOG_LEVEL LOG_LEVEL_MAC
 
-static uint8_t default_lorawan_server_lladdr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 };
+static uint8_t default_lorawan_server_lladdr[] = { 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 };
 
 PROCESS(loramac_recv_process, "loramac recv process");
 

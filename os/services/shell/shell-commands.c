@@ -76,7 +76,7 @@
 
 #include <stdlib.h>
 
-#define PING_TIMEOUT (25 * CLOCK_SECOND)
+#define PING_TIMEOUT (65 * CLOCK_SECOND)
 
 #if NETSTACK_CONF_WITH_IPV6
 static struct uip_icmp6_echo_reply_notification echo_reply_notification;

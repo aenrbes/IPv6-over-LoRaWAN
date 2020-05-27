@@ -57,6 +57,8 @@ extern int contiki_argc;
 extern char **contiki_argv;
 extern const char *slip_config_ipaddr;
 
+uip_ipaddr_t host_ipaddr;
+
 static uint8_t mac_addr[] = { 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 };
 
 PROCESS(border_router_process, "Border router process");
@@ -139,6 +141,7 @@ PROCESS_THREAD(border_router_process, ev, data)
       LOG_INFO("Setting prefix ");
       LOG_INFO_6ADDR(&prefix);
       LOG_INFO_("\n");
+      host_ipaddr = prefix;
       set_global_address(&prefix, NULL);
     } else {
       LOG_ERR("Parse error: %s\n", slip_config_ipaddr);

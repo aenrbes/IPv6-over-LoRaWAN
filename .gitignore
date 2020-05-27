@@ -2,7 +2,6 @@
 *.bin
 *.hex
 *.map
-*.png
 *.log
 *.elf
 *.zip
@@ -38,6 +37,7 @@ COOJA.testlog
 *.firmware
 *.cc26x0-cc13x0
 *.zoul
+*.loramac
 
 # do not ignore platform makefiles
 !Makefile.cc2538dk
@@ -49,6 +49,7 @@ COOJA.testlog
 !Makefile.sky
 !Makefile.cc26x0-cc13x0
 !Makefile.zoul
+!Makefile.loramac
 
 # other nRF52 build artifacts
 *.jlink

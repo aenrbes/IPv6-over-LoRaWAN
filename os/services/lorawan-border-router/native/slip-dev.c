@@ -45,7 +45,7 @@
 
 /* Log configuration */
 #include "sys/log.h"
-#define LOG_MODULE "BR_dev"
+#define LOG_MODULE "BR_DEV"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
 void packet_sent(uint8_t status, uint8_t tx);
@@ -62,6 +62,12 @@ static uint8_t recv_buf[128];
 static uint8_t recv_len;
 static linkaddr_t sender_lladdr;
 bool lorawan_recv_pending;
+static bool lorawan_downlink_txack = false;
+static bool lorawan_downlink_ack = false;
+static uint8_t lorawan_downlink_retry;
+static char in_sending_devEUI[17] = "\0";
+static uint32_t txack_fcnt = 0;
+static uint32_t ack_fcnt = 0;
 
 struct userdata__callback {
   const char *topic;
@@ -124,10 +130,8 @@ static void on_connect(struct mosquitto *mosq, void *obj, int rc)
   struct userdata__callback *userdata = obj;
 
   (void)rc;
-  printf("--------------on_connect 01---------------\n");
-    printf("userdata->topic : %s", userdata->topic);
+
   mosquitto_subscribe(mosq, NULL, userdata->topic, userdata->qos);
-  printf("--------------on_connect 02---------------\n");
 }
 
 static void on_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message)
@@ -177,74 +181,118 @@ static int on_message(struct mosquitto *mosq, void *userdata, const struct mosqu
   JSON_Object *root_obj = NULL;
   JSON_Value *val = NULL;
   const char *str; /* pointer to sub-strings in the JSON data */
+  char recv_topic[128];
   int i,j;
+  bool result;
 
-uint8_t temp1[200]={0};
-
-
-  if(lorawan_recv_pending == true) {
-    return 0;
-  }
+  uint8_t temp1[200]={0};
 
   memcpy(json_up, msg->payload, msg->payloadlen);
-  printf("[ JSON_UP ] %s %s (%d)\n", msg->topic, (const char *)msg->payload, msg->payloadlen);
+  LOG_DBG("[ JSON_UP ] %s %s (%d)\n", msg->topic, (const char *)msg->payload, msg->payloadlen);
   json_up[msg->payloadlen] = 0; /* add string terminator, just to be safe */
 
+  /* get JSON root */
   root_val = json_parse_string_with_comments((const char *)json_up); /* JSON offset */
   if (root_val == NULL) {
-    printf("[ JSON_UP ] WARNING: [down] invalid JSON\n");
+    LOG_DBG("[ JSON_UP ] WARNING: [down] invalid JSON\n");
     return 0;
   }
   root_obj = json_value_get_object(root_val);
 
+  /* process txack event */
+  sprintf(recv_topic, "application/%s/device/%s/txack", slip_config_appid, in_sending_devEUI);
+  mosquitto_topic_matches_sub(recv_topic, msg->topic, &result);
+  if(result) {
+    lorawan_downlink_txack = true;
+    val = json_object_get_value(root_obj, "fCnt");
+    if (val == NULL) {
+      LOG_DBG("[ JSON_UP ]: \"fPort\" object in JSON\n");
+      json_value_free(root_val);
+      return 0;
+    }
+    txack_fcnt = (uint32_t)json_value_get_number(val);
+    LOG_INFO("-----DOWNLINK FCNT----- : %d\n", txack_fcnt);
+  }
+
+  /* process ack event */
+  sprintf(recv_topic, "application/%s/device/%s/ack", slip_config_appid, in_sending_devEUI);
+  mosquitto_topic_matches_sub(recv_topic, msg->topic, &result);
+  if(result) {
+    val = json_object_get_value(root_obj, "fCnt");
+    if (val == NULL) {
+      LOG_DBG("[ JSON_UP ]: \"fCnt\" object not in ack\n");
+      json_value_free(root_val);
+      return 0;
+    }
+    ack_fcnt = (uint32_t)json_value_get_number(val);
+    LOG_INFO("-----DOWNLINK FCNT in ack----- : %d\n", ack_fcnt);
+    i = json_object_get_boolean(root_obj, "acknowledged"); /* can be 1 if true, 0 if false, or -1 if not a JSON boolean */
+    if (i == 1) {
+      lorawan_downlink_ack = true;
+      LOG_INFO("[ DOWNLINK ACK! ]\n");
+      return 0;
+    }
+    if (i == 0) {
+      lorawan_downlink_ack = false;
+      LOG_INFO("[ DOWNLINK NACK! ]\n");
+      return 0;
+    }
+  }
+
+  /* process devEUI */
   str = json_object_get_string(root_obj, "devEUI");
   if (str == NULL) {
-    printf("[ JSON_UP ]: [down] no \"devEUI\" object in JSON\n");
+    LOG_DBG("[ JSON_UP ]: [down] no \"devEUI\" object in JSON\n");
     json_value_free(root_val);
       return 0;
   }
-  printf("[ JSON_UP ]: devEUI:%s\n", str);
+  LOG_DBG("[ JSON_UP ]: devEUI:%s\n", str);
   i = devEUI_to_lladdr(str, &sender_lladdr);
-  printf("[ JSON_UP ]: dev lladdr:");
-  for(j = 0; j < sizeof sender_lladdr; j++) {
-    printf("%02x", sender_lladdr.u8[j]);
-  }
-  printf("\n");
   if(i == 0) {
     json_value_free(root_val);
     return 0;
   }
+  LOG_DBG("[ JSON_UP ]: dev lladdr:");
+  for(j = 0; j < sizeof sender_lladdr; j++) {
+    LOG_DBG("%02x", sender_lladdr.u8[j]);
+  }
+  LOG_DBG("\n");
 
+  /* process fPort */
   val = json_object_get_value(root_obj, "fPort");
   if (val == NULL) {
-    printf("[ JSON_UP ]: \"fPort\" object in JSON\n");
+    LOG_DBG("[ JSON_UP ]: \"fPort\" object in JSON\n");
     json_value_free(root_val);
     return 0;
   }
   if((uint8_t)json_value_get_number(val) != 2 ) {
-    printf("[ JSON_UP ]: \"fPort\" != 2, not for us\n");
+    LOG_DBG("[ JSON_UP ]: \"fPort\" != 2, not for us\n");
     json_value_free(root_val);
     return 0;
   }
 
+  /* process data */
   str = json_object_get_string(root_obj, "data");
   if (str == NULL) {
-      printf("[ JSON_UP ]: [down] no mandatory \"data\" object in JSON\n");
+      LOG_DBG("[ JSON_UP ]: [down] no mandatory \"data\" object in JSON\n");
       json_value_free(root_val);
       return 0;
   }
+  if(lorawan_recv_pending == true) {
+    return 0;
+  }
   i = b64_to_bin(str, strlen(str), recv_buf, sizeof recv_buf);
   if (i > 128) {
-      printf("[ JSON_UP ]: [down] too large data obj\n");
+      LOG_DBG("[ JSON_UP ]: [down] too large data obj\n");
       json_value_free(root_val);
       return 0;
   }
   recv_len = i;
 
-memset(temp1,0,200);
-appHexToString((const char *)recv_buf, recv_len,(char *)(temp1));
-temp1[recv_len * 2]='\0';   
-printf("[ JSON_UP ]: recv_buf:%s", (char *)temp1);
+  memset(temp1,0,200);
+  appHexToString((const char *)recv_buf, recv_len,(char *)(temp1));
+  temp1[recv_len * 2]='\0';   
+  LOG_DBG("[ JSON_UP ]: recv_buf:%s", (char *)temp1);
 
   json_value_free(root_val);
 
@@ -283,18 +331,25 @@ PROCESS_THREAD(lorawan_recv_process, ev, data)
 void
 write_to_slip(char *devEUI, const uint8_t *buf, int len)
 {
-  int j = 0;
+  int ret = 0;
   int buff_index = 0;
   char pub_topic[256] = "\0";
   uint8_t json_down[1024];
+  static struct timer send_timeout_timer;
+
+  lorawan_downlink_txack = false;
+  lorawan_downlink_ack = false;
+  lorawan_downlink_retry = 0;
+
+  strcpy(in_sending_devEUI, devEUI);
 
   sprintf((char *)json_down, "{\"confirmed\":true,\"fPort\":2,\"data\":\"");
   buff_index += strlen((char *)json_down);
-  j = bin_to_b64(buf, len, (char *)(json_down + buff_index), 341); /* 255 bytes = 340 chars in b64 + null char */
-  if (j >= 0) {
-    buff_index += j;
+  ret = bin_to_b64(buf, len, (char *)(json_down + buff_index), 341); /* 255 bytes = 340 chars in b64 + null char */
+  if (ret >= 0) {
+    buff_index += ret;
   } else {
-    printf("ERROR: [up] bin_to_b64 failed\n");
+    LOG_ERR("ERROR: [up] bin_to_b64 failed\n");
     exit(EXIT_FAILURE);
   }
 
@@ -304,18 +359,47 @@ write_to_slip(char *devEUI, const uint8_t *buf, int len)
   ++buff_index;
   json_down[buff_index] = 0; /* add string terminator, for safety */
 
-  printf("[ JSON_DOWN ]: %s\n", json_down);
+  LOG_INFO("[ JSON_DOWN ]: %s\n", json_down);
 
   sprintf(pub_topic, "application/%s/device/%s/tx", slip_config_appid, devEUI);
 
-  printf("[ PUB_TOPIC ]: %s\n", pub_topic);
 
-  j = mosquitto_publish(mosq, NULL, pub_topic, buff_index, json_down, 2, false);
-  if (j != MOSQ_ERR_SUCCESS) {
-    printf("[ ERORR! ] mosquitto_publish failed ret=%d", j);
+  LOG_INFO("[ PUB_TOPIC ]: %s\n", pub_topic);
+
+  ret = mosquitto_publish(mosq, NULL, pub_topic, buff_index, json_down, 2, false);
+  if (ret != MOSQ_ERR_SUCCESS) {
+    LOG_ERR("[ ERORR! ] mosquitto_publish failed ret=%d", ret);
     packet_sent(MAC_TX_ERR, 1);
+    strcpy(in_sending_devEUI , "\0");
+    return;
   }
-  packet_sent(MAC_TX_OK, 1);
+
+  while(lorawan_downlink_retry < 4) {
+    timer_set(&send_timeout_timer, CLOCK_SECOND * 15);
+    while(!timer_expired(&send_timeout_timer)) {
+      if(lorawan_downlink_txack && lorawan_downlink_ack && txack_fcnt == ack_fcnt) {
+        LOG_INFO("[ JSON_DOWN ]: done!\n");
+        packet_sent(MAC_TX_OK, 1);
+        strcpy(in_sending_devEUI , "\0");
+        return;
+      }
+    }
+
+    LOG_INFO("[ JSON_DOWN ]:retry!\n");
+    lorawan_downlink_txack = false;
+    lorawan_downlink_ack =false;
+    lorawan_downlink_retry++;
+    ret = mosquitto_publish(mosq, NULL, pub_topic, buff_index, json_down, 2, false);
+    if (ret != MOSQ_ERR_SUCCESS) {
+      LOG_ERR("[ ERORR! ] mosquitto_publish failed ret=%d", ret);
+      packet_sent(MAC_TX_ERR, 1);
+      strcpy(in_sending_devEUI , "\0");
+      return;
+    }
+  }
+  
+  strcpy(in_sending_devEUI , "\0");
+  packet_sent(MAC_TX_NOACK, 1);
 }
 
 int
@@ -325,8 +409,8 @@ slip_init(void)
 
   process_start(&lorawan_recv_process, NULL);
 
-  sprintf(sub_topic, "application/%s/device/+/rx", slip_config_appid);
-  printf("[MQTT CLIENT] subscribe:%s\n", sub_topic);
+  sprintf(sub_topic, "application/%s/device/#", slip_config_appid);
+  LOG_INFO("[MQTT CLIENT] subscribe:%s\n", sub_topic);
 
   mosquitto_lib_init();
 
@@ -351,11 +435,11 @@ slip_init(void)
 
   rc = mosquitto_loop_start(mosq);
   if(rc) {
-    printf("mosquitto loop start failed!\n");
+    LOG_ERR("mosquitto loop start failed!\n");
     goto destroy;
   }
 
-  printf("[MQTT CLIENT] slip_init success!\n");
+  LOG_INFO("[MQTT CLIENT] slip_init success!\n");
   return 0;
 
 destroy:

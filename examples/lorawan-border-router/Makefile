@@ -1,7 +1,7 @@
 CONTIKI_PROJECT = border-router
 all: $(CONTIKI_PROJECT)
 CONTIKI = ../..
-
+WERROR = 0
 TARGET = native
 
 # Include RPL BR module

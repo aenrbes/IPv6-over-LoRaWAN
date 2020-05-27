@@ -393,6 +393,8 @@ add_fragment(uint16_t tag, uint16_t frag_size, uint8_t offset)
   }
 
   /* i is the index of the reassembly context */
+  if(offset << 3 < frag_info[i].reassembled_len) return i;
+
   len = store_fragment(i, offset);
   if(len < 0 && timeout_fragments(i) > 0) {
     len = store_fragment(i, offset);

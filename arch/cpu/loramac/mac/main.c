@@ -25,7 +25,7 @@ extern Gpio_t	EN_Vext;
 /*!
  * Defines the application data transmission duty cycle. 60s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            15000
+#define APP_TX_DUTYCYCLE                            11000
 
 /*!
  * Defines a random delay for application data transmission duty cycle. 1s,
@@ -210,7 +210,18 @@ static void PrepareTxFrame( uint8_t port )
     case 2:
         {
             //appdata is already filled now
-/*
+
+            //printf("TxFrame:");
+            //for(i = 0; i < AppDataSize; i++) {
+            //    printf(" %X", AppData[i]);
+            //}
+            //printf("\n");
+        }
+        break;
+    case 3:
+        {
+
+
             AppDataSize = LORAWAN_APP_DATA_SIZE;
             AppData[0] =   'A';
             AppData[1] =   'B';
@@ -228,12 +239,12 @@ static void PrepareTxFrame( uint8_t port )
             AppData[13] =  '5';
             AppData[14] =  '%';
             AppData[15] =  '4';
-*/
-            printf("TxFrame:");
-            for(i = 0; i < AppDataSize; i++) {
-                printf(" %X", AppData[i]);
-            }
-            printf("\n");
+
+            //printf("TxFrame:");
+            //for(i = 0; i < AppDataSize; i++) {
+            //    printf(" %X", AppData[i]);
+            //}
+            //printf("\n");
         }
         break;
     case 224:
@@ -376,8 +387,8 @@ static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
                 if( mcpsConfirm->AckReceived != 0)
                 {
                     LoRaMacPacketAckReceived = true;
-                    DebugPrintf("+McpsConfirm:ACK RECEIVED\r\n");
-                    DebugPrintf("+McpsConfirm:DONE\r\n\r\n");
+                    //DebugPrintf("+McpsConfirm:ACK RECEIVED\r\n");
+                    //DebugPrintf("+McpsConfirm:DONE\r\n\r\n");
                 }
                 break;
             }
@@ -440,8 +451,8 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
     
     if( mcpsIndication->AckReceived == true )
     { 
-		DebugPrintf("+McpsIndication:ACK RECEIVED\r\n");
-		DebugPrintf("+McpsIndication:DONE\r\n\r\n");
+		//DebugPrintf("+McpsIndication:ACK RECEIVED\r\n");
+		//DebugPrintf("+McpsIndication:DONE\r\n\r\n");
 		GpioWrite( &EN_Vext, 1 );
 		HAL_Delay(10);
     }
@@ -451,18 +462,18 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
         ComplianceTest.DownLinkCounter++;
     }
 
-    uint8_t temp[200]={0};
-    uint8_t temp1[200]={0};
+    //uint8_t temp[200]={0};
+    //uint8_t temp1[200]={0};
     if( mcpsIndication->RxData == true )
     {
-        memset(temp,0,200);
-        memset(temp1,0,200);
+        //memset(temp,0,200);
+        //memset(temp1,0,200);
         
-        HexToString((const char *)(mcpsIndication->Buffer),mcpsIndication->BufferSize,(char *)(temp1));
-        temp1[mcpsIndication->BufferSize * 2]='\0';   
+        //HexToString((const char *)(mcpsIndication->Buffer),mcpsIndication->BufferSize,(char *)(temp1));
+        //temp1[mcpsIndication->BufferSize * 2]='\0';   
         
-        sprintf((char *)temp,"+REV MSG:%s,RXSIZE %d,\"%s\"\r\n\r\n", mcpsIndication->RxSlot?"RXWIN2":"RXWIN1", mcpsIndication->BufferSize, temp1);
-        UartPutBuffer(&Uart1,temp,strlen((char const*)temp));
+        //sprintf((char *)temp,"+REV MSG:%s,RXSIZE %d,\"%s\"\r\n\r\n", mcpsIndication->RxSlot?"RXWIN2":"RXWIN1", mcpsIndication->BufferSize, temp1);
+        //UartPutBuffer(&Uart1,temp,strlen((char const*)temp));
         
         switch( mcpsIndication->Port )
         {
@@ -783,10 +794,13 @@ void LoRaMacProcessLoopOnes( void )
                                 LoRaMacMibSetRequestConfirm( &mibReq );
                             }
 
-				DebugPrintf("Into send state\r\n");
-				if( NextTx == true && LoRaMacPacketEmpty == false )
+				//DebugPrintf("Into send state\r\n");
+				if( NextTx == true )
 				{
-				  DebugPrintf("In sending...\r\n");
+				  //DebugPrintf("In sending...\r\n");
+
+                    AppPort = ( LoRaMacPacketEmpty == false ) ? LORAWAN_APP_PORT : 3; 
+
 					PrepareTxFrame( AppPort );
 					NextTx = SendFrame( );
 				}

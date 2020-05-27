@@ -1,6 +1,7 @@
 CONTIKI_PROJECT = hello-world
 all: $(CONTIKI_PROJECT)
 
+TARGET = loramac
 CONTIKI = ../..
 
 include $(CONTIKI)/Makefile.dir-variables
