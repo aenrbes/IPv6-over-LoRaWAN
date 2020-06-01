@@ -154,7 +154,7 @@ struct schc_rule_t {
 	const struct schc_compression_rule_t *compression_rule;
 	/* the reliability mode */
 	reliability_mode mode;
-	/* the fcn size in bits */
+	/* the fcn size in bits (must larger than 1) */
 	uint8_t FCN_SIZE;
 	/* the maximum number of fragments per window */
 	uint8_t MAX_WND_FCN;

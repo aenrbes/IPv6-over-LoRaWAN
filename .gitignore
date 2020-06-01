@@ -24,6 +24,8 @@ build
 tools/coffee-manager/build/
 tools/coffee-manager/coffee.jar
 COOJA.testlog
+.vscode
+.vscode/*
 
 # platform build artifacts
 *.cc2538dk

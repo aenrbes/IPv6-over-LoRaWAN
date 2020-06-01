@@ -2,19 +2,18 @@
 #define SCHC_CONFIG_H_
 
 #include <stdio.h>
-#include <unistd.h>
 #include <inttypes.h>
 
 #define CLICK							0
 
-#define DYNAMIC_MEMORY					0
-#define STATIC_MEMORY_BUFFER_LENGTH		1024
+#define MBUF_USE_MEMPOOL					1
+#define STATIC_MEMORY_BUFFER_LENGTH		1280
 
-#define SCHC_CONF_RX_CONNS				1
+#define SCHC_CONF_RX_CONNS				2
 #define SCHC_CONF_MBUF_POOL_LEN			32
 
-#define USE_COAP						1
-#define USE_UDP							1
+#define USE_COAP						0
+#define USE_UDP							0
 #define USE_IPv6						1
 
 #define NUMBER_OF_LAYERS				USE_COAP + USE_UDP + USE_IPv6

@@ -38,8 +38,7 @@
  *         Simon Duquennoy <simon.duquennoy@inria.fr>
  */
 
-#include "loramac/loramac.h"
-#include "loramac/loramac-output.h"
+#include "lora_dev_mac.h"
 #include "net/packetbuf.h"
 #include "net/netstack.h"
 
@@ -78,12 +77,17 @@ PROCESS_THREAD(loramac_recv_process, ev, data)
 static void
 send_packet(mac_callback_t sent, void *ptr)
 {
-  if(packetbuf_totlen() > PACKETBUF_SIZE) {
-    LOG_WARN("send failed, too large header\n");
-    mac_call_sent_callback(sent, ptr, MAC_TX_ERR_FATAL, 1);
-  } else {
-    loramac_output_packet(sent, ptr);
+  /* there is a packet in transmissing or already received
+     a packet that needs to be read */
+  if(!LoRaMacPacketEmpty || LoRaMacRecvPending) {
+    mac_call_sent_callback(sent, ptr, MAC_TX_DEFERRED, 1);
+    return;
   }
+
+  memcpy(LoRaMacPacketBufferPtr, packetbuf_dataptr(), packetbuf_datalen());
+  *LoRaMacPacketLengthPtr = packetbuf_datalen();
+  LoRaMacPacketEmpty = false;
+  mac_call_sent_callback(sent, ptr, MAC_TX_OK, 1);
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -119,7 +123,7 @@ static void
 init(void)
 {
   process_start(&loramac_recv_process, NULL);
-  loramac_output_init();
+//  loramac_output_init();
   on();
 }
 /*---------------------------------------------------------------------------*/

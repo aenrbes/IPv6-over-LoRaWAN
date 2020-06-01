@@ -4,10 +4,10 @@ ifndef CONTIKI
   $(error CONTIKI not defined! You must specify where CONTIKI resides!)
 endif
 
-CONTIKI_TARGET_DIRS = . loramac
+CONTIKI_TARGET_DIRS = .
 
 CONTIKI_TARGET_SOURCEFILES += platform.c
-CONTIKI_TARGET_SOURCEFILES += loramac.c loramac-output.c
+CONTIKI_TARGET_SOURCEFILES += lora_dev_mac.c
 
 CONTIKI_SOURCEFILES += $(CONTIKI_TARGET_SOURCEFILES)
 

@@ -28,7 +28,7 @@
  */
 
 /* use a non-default network driver */
-#define NETSTACK_CONF_NETWORK sicslowpan_driver
+#define NETSTACK_CONF_NETWORK schc_driver
 
 /* use a non-default MAC driver */
 #define NETSTACK_CONF_MAC border_router_mac_driver

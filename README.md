@@ -1,22 +1,34 @@
 
 
-# (WIP) ipv6-over-LoRaWan
-Based on Contiki-NG-4.4 and LoRaMac-node
+# (WIP) IPv6-over-LoRaWAN
+* Based on Contiki-NG-4.4, LoRaMac-node, libschc, ChirpStack
 
 ## Introduction
+Ping between device-node, border-router and host is tested. lora node CoAP server is tested.
+* Contiki-NG : works as layer 3 and above of IPv6 protocol stack for both node and server side,
+and can build applications easily on top of the stack.
+* libschc : libschc is a C implementation of the Static Context Header Compression,
+works as the adaptation layer between IP and MAC layer, it provide both the compression
+and the fragmentation mechanism.Note that I found that libschc's internal state machine
+still has some bugs, so for now only NO_ACK mode is tested very basically.As an alternative,
+6LoWPAN provided by contiki-ng can be used instead of libschc, the following test images are
+all in the case of using 6LoWPAN.
+* LoRaMac-node : provide LoRaWAN node side MAC layer and the bottom driver used by contiki-ng such
+as RTC, UART...
+* ChirpStack : works as LoRaWAN server on the host.ChirpStack provide MQTT integration whick can
+be used to send and receive device data.
 
-Ping between device-node, border-router and host is tested. lora node CoAP server is tested. 
-    Architecture:
+* Architecture:
 
-        Dev node                                        border router                       Host
-    +--------------+                                  +--------------+                   +---------+
-    |App1 App2 App3|                                  |App1 App2 App3|                   | App1 ...|
-    |              |                                  |              |   +-----------+   |         |
-    |      UDP     |                                  |      UDP     |   |           |   |   UDP   |
-    |     IPv6     |                                  |     IPv6 +---+---+ /dev/tun0 +---+  IPv6   |
-    |    6LOWPAN   |                                  |    6LOWPAN   |   |           |   |         |
-    |    LoRaMac   |                                  |              |   +-----------+   +---------+
-    +-------+------+                                  +--------------+ 
+        node(contiki-ng)                              border router(contiki-ng)              Host(raspbian)
+        +--------------+                                  +--------------+                   +---------+
+        |App1 App2 App3|                                  |App1 App2 App3|                   | App1 ...|
+        |              |                                  |              |   +-----------+   |         |
+        |      UDP     |                                  |      UDP     |   |           |   |   UDP   |
+        |     IPv6     |                                  |     IPv6     +---+ /dev/tun0 +---+  IPv6   |
+        | 6LOWPAN/SCHC |                                  | 6LOWPAN/SCHC |   |           |   |         |
+        |    LoRaMac   |                                  |              |   +-----------+   +---------+
+        +-------+------+                                  +--------------+ 
          |                          ChirpStack               |
          |  +-------+     +-------+    +-----------+         |
          +~ |Gateway| === |Network| == |Application|..... APPserver MQTT integration ....
@@ -66,9 +78,16 @@ to setup up LoRaWAN device configuration, for now we use a classC device.
 
 3. other test picture is under test-picture/
 
+## note
+If you want to use 6LoWPAN, you need to checkout to commit named "add downlink retry",
+the downlink retry does not work perfectly, it often miss ack from device node,
+causes a lot of wasted transmission time.
 
-Find out more:
+## todo
+Fix libschc.
+
+## find out more:
 
 * Contiki-NG: https://github.com/contiki-ng/contiki-ng
 * LoRaMac-node: https://github.com/Lora-net/LoRaMac-node
-
+* libschc: https://github.com/imec-idlab/libschc

@@ -62,12 +62,6 @@ static uint8_t recv_buf[128];
 static uint8_t recv_len;
 static linkaddr_t sender_lladdr;
 bool lorawan_recv_pending;
-static bool lorawan_downlink_txack = false;
-static bool lorawan_downlink_ack = false;
-static uint8_t lorawan_downlink_retry;
-static char in_sending_devEUI[17] = "\0";
-static uint32_t txack_fcnt = 0;
-static uint32_t ack_fcnt = 0;
 
 struct userdata__callback {
   const char *topic;
@@ -145,35 +139,6 @@ static void on_message_callback(struct mosquitto *mosq, void *obj, const struct 
   }
 }
 
-//-------------------------------------------------------------------------------------------------
-static uint32_t appHexToString(/*IN*/  const char    * pHex,  
-                     /*IN*/  uint32_t           hexLen,  
-                     /*OUT*/ char          * pByteString)  
-{  
-  unsigned long i;  
-  
-  if (pHex==NULL)  
-    return 1;  
-  
-  if(hexLen <= 0)  
-    return 2;  
-  
-  for(i=0;i<hexLen;i++)  
-  {  
-    if(((pHex[i]&0xf0)>>4)>=0 && ((pHex[i]&0xf0)>>4)<=9)  
-      pByteString[2*i]=((pHex[i]&0xf0)>>4)+0x30;  
-    else if(((pHex[i]&0xf0)>>4)>=10 && ((pHex[i]&0xf0)>>4)<=16)  
-      pByteString[2*i]=((pHex[i]&0xf0)>>4)+0x37;  
-    
-    if((pHex[i]&0x0f)>=0 && (pHex[i]&0x0f)<=9)  
-      pByteString[2*i+1]=(pHex[i]&0x0f)+0x30;  
-    else if((pHex[i]&0x0f)>=10 && (pHex[i]&0x0f)<=16)  
-      pByteString[2*i+1]=(pHex[i]&0x0f)+0x37;  
-  }  
-  return 0;  
-} 
-//-------------------------------------------------------------------------------------------------
-
 static int on_message(struct mosquitto *mosq, void *userdata, const struct mosquitto_message *msg)
 {
   uint8_t json_up[1024] = "\0";
@@ -183,76 +148,33 @@ static int on_message(struct mosquitto *mosq, void *userdata, const struct mosqu
   const char *str; /* pointer to sub-strings in the JSON data */
   char recv_topic[128];
   int i,j;
-  bool result;
-
-  uint8_t temp1[200]={0};
 
   memcpy(json_up, msg->payload, msg->payloadlen);
-  LOG_DBG("[ JSON_UP ] %s %s (%d)\n", msg->topic, (const char *)msg->payload, msg->payloadlen);
+  LOG_DBG("[ UPLINK ] %s %s (%d)\n", msg->topic, (const char *)msg->payload, msg->payloadlen);
   json_up[msg->payloadlen] = 0; /* add string terminator, just to be safe */
 
   /* get JSON root */
   root_val = json_parse_string_with_comments((const char *)json_up); /* JSON offset */
   if (root_val == NULL) {
-    LOG_DBG("[ JSON_UP ] WARNING: [down] invalid JSON\n");
+    LOG_DBG("[ UPLINK ] WARNING: [down] invalid JSON\n");
     return 0;
   }
   root_obj = json_value_get_object(root_val);
 
-  /* process txack event */
-  sprintf(recv_topic, "application/%s/device/%s/txack", slip_config_appid, in_sending_devEUI);
-  mosquitto_topic_matches_sub(recv_topic, msg->topic, &result);
-  if(result) {
-    lorawan_downlink_txack = true;
-    val = json_object_get_value(root_obj, "fCnt");
-    if (val == NULL) {
-      LOG_DBG("[ JSON_UP ]: \"fPort\" object in JSON\n");
-      json_value_free(root_val);
-      return 0;
-    }
-    txack_fcnt = (uint32_t)json_value_get_number(val);
-    LOG_INFO("-----DOWNLINK FCNT----- : %d\n", txack_fcnt);
-  }
-
-  /* process ack event */
-  sprintf(recv_topic, "application/%s/device/%s/ack", slip_config_appid, in_sending_devEUI);
-  mosquitto_topic_matches_sub(recv_topic, msg->topic, &result);
-  if(result) {
-    val = json_object_get_value(root_obj, "fCnt");
-    if (val == NULL) {
-      LOG_DBG("[ JSON_UP ]: \"fCnt\" object not in ack\n");
-      json_value_free(root_val);
-      return 0;
-    }
-    ack_fcnt = (uint32_t)json_value_get_number(val);
-    LOG_INFO("-----DOWNLINK FCNT in ack----- : %d\n", ack_fcnt);
-    i = json_object_get_boolean(root_obj, "acknowledged"); /* can be 1 if true, 0 if false, or -1 if not a JSON boolean */
-    if (i == 1) {
-      lorawan_downlink_ack = true;
-      LOG_INFO("[ DOWNLINK ACK! ]\n");
-      return 0;
-    }
-    if (i == 0) {
-      lorawan_downlink_ack = false;
-      LOG_INFO("[ DOWNLINK NACK! ]\n");
-      return 0;
-    }
-  }
-
   /* process devEUI */
   str = json_object_get_string(root_obj, "devEUI");
   if (str == NULL) {
-    LOG_DBG("[ JSON_UP ]: [down] no \"devEUI\" object in JSON\n");
+    LOG_DBG("[ UPLINK ]: [down] no \"devEUI\" object in JSON\n");
     json_value_free(root_val);
       return 0;
   }
-  LOG_DBG("[ JSON_UP ]: devEUI:%s\n", str);
+  LOG_DBG("[ UPLINK ]: devEUI:%s\n", str);
   i = devEUI_to_lladdr(str, &sender_lladdr);
   if(i == 0) {
     json_value_free(root_val);
     return 0;
   }
-  LOG_DBG("[ JSON_UP ]: dev lladdr:");
+  LOG_DBG("[ UPLINK ]: dev lladdr:");
   for(j = 0; j < sizeof sender_lladdr; j++) {
     LOG_DBG("%02x", sender_lladdr.u8[j]);
   }
@@ -261,12 +183,12 @@ static int on_message(struct mosquitto *mosq, void *userdata, const struct mosqu
   /* process fPort */
   val = json_object_get_value(root_obj, "fPort");
   if (val == NULL) {
-    LOG_DBG("[ JSON_UP ]: \"fPort\" object in JSON\n");
+    LOG_DBG("[ UPLINK ]: \"fPort\" object in JSON\n");
     json_value_free(root_val);
     return 0;
   }
   if((uint8_t)json_value_get_number(val) != 2 ) {
-    LOG_DBG("[ JSON_UP ]: \"fPort\" != 2, not for us\n");
+    LOG_DBG("[ UPLINK ]: \"fPort\" != 2, not for us\n");
     json_value_free(root_val);
     return 0;
   }
@@ -274,7 +196,7 @@ static int on_message(struct mosquitto *mosq, void *userdata, const struct mosqu
   /* process data */
   str = json_object_get_string(root_obj, "data");
   if (str == NULL) {
-      LOG_DBG("[ JSON_UP ]: [down] no mandatory \"data\" object in JSON\n");
+      LOG_DBG("[ UPLINK ]: [down] no mandatory \"data\" object in JSON\n");
       json_value_free(root_val);
       return 0;
   }
@@ -283,16 +205,11 @@ static int on_message(struct mosquitto *mosq, void *userdata, const struct mosqu
   }
   i = b64_to_bin(str, strlen(str), recv_buf, sizeof recv_buf);
   if (i > 128) {
-      LOG_DBG("[ JSON_UP ]: [down] too large data obj\n");
+      LOG_DBG("[ UPLINK ]: [down] too large data obj\n");
       json_value_free(root_val);
       return 0;
   }
   recv_len = i;
-
-  memset(temp1,0,200);
-  appHexToString((const char *)recv_buf, recv_len,(char *)(temp1));
-  temp1[recv_len * 2]='\0';   
-  LOG_DBG("[ JSON_UP ]: recv_buf:%s", (char *)temp1);
 
   json_value_free(root_val);
 
@@ -337,12 +254,6 @@ write_to_slip(char *devEUI, const uint8_t *buf, int len)
   uint8_t json_down[1024];
   static struct timer send_timeout_timer;
 
-  lorawan_downlink_txack = false;
-  lorawan_downlink_ack = false;
-  lorawan_downlink_retry = 0;
-
-  strcpy(in_sending_devEUI, devEUI);
-
   sprintf((char *)json_down, "{\"confirmed\":true,\"fPort\":2,\"data\":\"");
   buff_index += strlen((char *)json_down);
   ret = bin_to_b64(buf, len, (char *)(json_down + buff_index), 341); /* 255 bytes = 340 chars in b64 + null char */
@@ -359,10 +270,9 @@ write_to_slip(char *devEUI, const uint8_t *buf, int len)
   ++buff_index;
   json_down[buff_index] = 0; /* add string terminator, for safety */
 
-  LOG_INFO("[ JSON_DOWN ]: %s\n", json_down);
+  LOG_INFO("[ DOWNLINK ]: %s\n", json_down);
 
   sprintf(pub_topic, "application/%s/device/%s/tx", slip_config_appid, devEUI);
-
 
   LOG_INFO("[ PUB_TOPIC ]: %s\n", pub_topic);
 
@@ -370,36 +280,10 @@ write_to_slip(char *devEUI, const uint8_t *buf, int len)
   if (ret != MOSQ_ERR_SUCCESS) {
     LOG_ERR("[ ERORR! ] mosquitto_publish failed ret=%d", ret);
     packet_sent(MAC_TX_ERR, 1);
-    strcpy(in_sending_devEUI , "\0");
     return;
   }
 
-  while(lorawan_downlink_retry < 4) {
-    timer_set(&send_timeout_timer, CLOCK_SECOND * 15);
-    while(!timer_expired(&send_timeout_timer)) {
-      if(lorawan_downlink_txack && lorawan_downlink_ack && txack_fcnt == ack_fcnt) {
-        LOG_INFO("[ JSON_DOWN ]: done!\n");
-        packet_sent(MAC_TX_OK, 1);
-        strcpy(in_sending_devEUI , "\0");
-        return;
-      }
-    }
-
-    LOG_INFO("[ JSON_DOWN ]:retry!\n");
-    lorawan_downlink_txack = false;
-    lorawan_downlink_ack =false;
-    lorawan_downlink_retry++;
-    ret = mosquitto_publish(mosq, NULL, pub_topic, buff_index, json_down, 2, false);
-    if (ret != MOSQ_ERR_SUCCESS) {
-      LOG_ERR("[ ERORR! ] mosquitto_publish failed ret=%d", ret);
-      packet_sent(MAC_TX_ERR, 1);
-      strcpy(in_sending_devEUI , "\0");
-      return;
-    }
-  }
-  
-  strcpy(in_sending_devEUI , "\0");
-  packet_sent(MAC_TX_NOACK, 1);
+  packet_sent(MAC_TX_OK, 1);
 }
 
 int
@@ -409,7 +293,7 @@ slip_init(void)
 
   process_start(&lorawan_recv_process, NULL);
 
-  sprintf(sub_topic, "application/%s/device/#", slip_config_appid);
+  sprintf(sub_topic, "application/%s/device/+/rx", slip_config_appid);
   LOG_INFO("[MQTT CLIENT] subscribe:%s\n", sub_topic);
 
   mosquitto_lib_init();

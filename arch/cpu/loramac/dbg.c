@@ -32,6 +32,7 @@
 #include "uart.h"
 
 #include <string.h>
+#include <stdio.h>
 
 extern Uart_t Uart1;
 /*---------------------------------------------------------------------------*/
@@ -59,18 +60,18 @@ dbg_send_bytes(const unsigned char *s, unsigned int len)
 
     retryCount = 0;
 
-    if (s[i] == '\n') {
+    if ((int)s[i] == (int)'\n') {
       while( UartPutChar(&Uart1, '\r') != 0 ) {
         retryCount++;
-        if( retryCount > 8 ) {
+        if( retryCount > 64 ) {
             break; // Error
         }
       }
     }
 
-    while( UartPutChar(&Uart1, s[i]) != 0 ) {
+    while( UartPutChar(&Uart1, (int)s[i]) != 0 ) {
         retryCount++;
-        if( retryCount > 16 ) {
+        if( retryCount > 128 ) {
             return i; // Error
         }
     }

@@ -25,7 +25,7 @@ extern Gpio_t	EN_Vext;
 /*!
  * Defines the application data transmission duty cycle. 60s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            11000
+#define APP_TX_DUTYCYCLE                            30000
 
 /*!
  * Defines a random delay for application data transmission duty cycle. 1s,
@@ -41,7 +41,7 @@ extern Gpio_t	EN_Vext;
 /*!
  * LoRaWAN confirmed messages
  */
-#define LORAWAN_CONFIRMED_MSG_ON                    true
+#define LORAWAN_CONFIRMED_MSG_ON                    false
 
 /*!
  * LoRaWAN Adaptive Data Rate
@@ -124,7 +124,7 @@ static uint8_t AppDataSize = LORAWAN_APP_DATA_SIZE;
 /*!
  * User application data buffer size
  */
-#define LORAWAN_APP_DATA_MAX_SIZE                           128
+#define LORAWAN_APP_DATA_MAX_SIZE                           51
 
 /*!
  * User application data
@@ -155,6 +155,7 @@ static bool AppLedStateOn = false;
  * Indicates if a new packet can be sent
  */
 static bool NextTx = true;
+static bool HeartbeatTx =true;
 
 /*!
  * Device states
@@ -196,6 +197,7 @@ uint8_t *const LoRaMacPacketLengthPtr = &AppDataSize;
 bool LoRaMacPacketEmpty = true;
 bool LoRaMacPacketAckReceived = false;
 bool LoRaMacRecvPending = false;
+static uint8_t TxTimeoutCount;
 
 static bool LoRaMacAppDataFrameSent = false;
 
@@ -346,6 +348,7 @@ static void OnTxNextPacketTimerEvent( void )
         {
             DeviceState = DEVICE_STATE_SEND;
             NextTx = true;
+            HeartbeatTx = true;
         }
         else
         {
@@ -634,6 +637,7 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
  */
 static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
 {
+    DebugPrintf("++++MlmeConfirm++++\r\n\r\n");
 	switch( mlmeConfirm->MlmeRequest )
 	{
 		case MLME_JOIN:
@@ -646,6 +650,7 @@ static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
 				}
 				else
 				{
+                    DebugPrintf("+JOIN:FAILD\r\n\r\n");
 					// Join was not successful. Try to join again
 					DeviceState = DEVICE_STATE_JOIN;
 				}
@@ -785,25 +790,35 @@ void LoRaMacProcessLoopOnes( void )
             }
             case DEVICE_STATE_SEND:
             {
-                            mibReq.Type = MIB_DEVICE_CLASS;
-                            LoRaMacMibGetRequestConfirm( &mibReq );
+                mibReq.Type = MIB_DEVICE_CLASS;
+                LoRaMacMibGetRequestConfirm( &mibReq );
 
-                            if( mibReq.Param.Class!= CLASS_C )
-                            {
-                                mibReq.Param.Class = CLASS_C;
-                                LoRaMacMibSetRequestConfirm( &mibReq );
-                            }
+                if( mibReq.Param.Class!= CLASS_C )
+                {
+                    mibReq.Param.Class = CLASS_C;
+                    LoRaMacMibSetRequestConfirm( &mibReq );
+                }
 
 				//DebugPrintf("Into send state\r\n");
-				if( NextTx == true )
+				if( NextTx && ( HeartbeatTx || !LoRaMacPacketEmpty ) )
 				{
 				  //DebugPrintf("In sending...\r\n");
-
-                    AppPort = ( LoRaMacPacketEmpty == false ) ? LORAWAN_APP_PORT : 3; 
+                    AppPort = 3; //use APPport 3 as heartbeat
+                    if( !LoRaMacPacketEmpty )
+                    {
+                        AppPort = LORAWAN_APP_PORT;
+                        if(TxTimeoutCount++ > 0)
+                        {
+                            LoRaMacPacketEmpty = true;
+                            TxTimeoutCount = 0;
+                        }
+                    }
 
 					PrepareTxFrame( AppPort );
 					NextTx = SendFrame( );
+                    HeartbeatTx = NextTx;
 				}
+
 				if( ComplianceTest.Running == true )
 				{
 						// Schedule next packet transmission
@@ -814,7 +829,12 @@ void LoRaMacProcessLoopOnes( void )
 						// Schedule next packet transmission
 						TxDutyCycleTime = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
 				}
-				DeviceState = DEVICE_STATE_CYCLE;
+
+				DeviceState = DEVICE_STATE_SEND;
+
+                // Schedule next heartbeat packet transmission
+                TimerSetValue( &TxNextPacketTimer, TxDutyCycleTime );
+                TimerStart( &TxNextPacketTimer );
 				break;
             }
             case DEVICE_STATE_CYCLE:
@@ -822,15 +842,15 @@ void LoRaMacProcessLoopOnes( void )
                 DeviceState = DEVICE_STATE_SLEEP;
 
                 // Schedule next packet transmission
-                TimerSetValue( &TxNextPacketTimer, TxDutyCycleTime );
-                TimerStart( &TxNextPacketTimer );
+                //TimerSetValue( &TxNextPacketTimer, TxDutyCycleTime );
+                //TimerStart( &TxNextPacketTimer );
                 break;
             }
             case DEVICE_STATE_SLEEP:
             {
                 // Wake up through events
 //            	DebugPrintf("S");
-                TimerLowPowerHandler( );
+                //TimerLowPowerHandler( );
                 break;
             }
             default:
@@ -844,13 +864,14 @@ void LoRaMacProcessLoopOnes( void )
 /**
  * Main application entry point.
  */
-int LowLevelInit( void )
+void LowLevelInit( void )
 {
     BoardInitMcu( );
 
     BoardInitPeriph( );
 
     DeviceState = DEVICE_STATE_INIT;
+    TxTimeoutCount = 0;
 
     LoRaMacProcessLoopOnes( );
 

@@ -54,39 +54,10 @@
 #include "net/netstack.h"
 #include "dev/radio.h"
 
-#ifdef CSMA_CONF_SEND_SOFT_ACK
-#define CSMA_SEND_SOFT_ACK CSMA_CONF_SEND_SOFT_ACK
-#else /* CSMA_CONF_SEND_SOFT_ACK */
-#define CSMA_SEND_SOFT_ACK 0
-#endif /* CSMA_CONF_SEND_SOFT_ACK */
 
-#ifdef CSMA_CONF_ACK_WAIT_TIME
-#define CSMA_ACK_WAIT_TIME CSMA_CONF_ACK_WAIT_TIME
-#else /* CSMA_CONF_ACK_WAIT_TIME */
-#define CSMA_ACK_WAIT_TIME                      RTIMER_SECOND / 2500
-#endif /* CSMA_CONF_ACK_WAIT_TIME */
-
-#ifdef CSMA_CONF_AFTER_ACK_DETECTED_WAIT_TIME
-#define CSMA_AFTER_ACK_DETECTED_WAIT_TIME CSMA_CONF_AFTER_ACK_DETECTED_WAIT_TIME
-#else /* CSMA_CONF_AFTER_ACK_DETECTED_WAIT_TIME */
-#define CSMA_AFTER_ACK_DETECTED_WAIT_TIME       RTIMER_SECOND / 1500
-#endif /* CSMA_CONF_AFTER_ACK_DETECTED_WAIT_TIME */
-
-#define CSMA_ACK_LEN 3
-
-/* just a default - with LLSEC, etc */
-#define CSMA_MAC_MAX_HEADER 21
-
-#define LORAWAN_APP_DATA_MAX_SIZE                           128
+#define LORAWAN_APP_DATA_MAX_SIZE                           51
 
 extern const struct mac_driver loramac_driver;
-
-/* CSMA security framer functions */
-int csma_security_create_frame(void);
-int csma_security_parse_frame(void);
-
-/* key management for CSMA */
-int csma_security_set_key(uint8_t index, const uint8_t *key);
 
 /* interface to LoRaMac */
 extern void LoRaMacProcessLoopOnes(void);

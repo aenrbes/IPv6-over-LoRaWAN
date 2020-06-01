@@ -17,7 +17,7 @@ CONTIKI_TARGET_SOURCEFILES += tun6-net.c
 endif
 
 ifeq ($(HOST_OS),Linux)
-TARGET_LIBFILES += -lrt -lmosquitto
+TARGET_LIBFILES += -lrt -lmosquitto -lm
 endif
 
 CONTIKI_SOURCEFILES += $(CONTIKI_TARGET_SOURCEFILES)

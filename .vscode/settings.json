@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "*.tcc": "c"
+        "*.tcc": "c",
+        "tuple": "cpp"
     }
 }

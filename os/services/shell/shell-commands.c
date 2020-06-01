@@ -128,6 +128,7 @@ PT_THREAD(cmd_ping(struct pt *pt, shell_output_func output, char *args))
   static uip_ipaddr_t remote_addr;
   static struct etimer timeout_timer;
   char *next_args;
+  int payload_len;
 
   PT_BEGIN(pt);
 
@@ -147,11 +148,18 @@ PT_THREAD(cmd_ping(struct pt *pt, shell_output_func output, char *args))
   shell_output_6addr(output, &remote_addr);
   SHELL_OUTPUT(output, "\n");
 
+  SHELL_ARGS_NEXT(args, next_args);
+  if(args == NULL) {
+    payload_len = 4;
+  } else {
+    payload_len = atoi(args);
+  }
+
   /* Send ping request */
   curr_ping_process = PROCESS_CURRENT();
   curr_ping_output_func = output;
   etimer_set(&timeout_timer, PING_TIMEOUT);
-  uip_icmp6_send(&remote_addr, ICMP6_ECHO_REQUEST, 0, 4);
+  uip_icmp6_send(&remote_addr, ICMP6_ECHO_REQUEST, 0, payload_len);
   PT_WAIT_UNTIL(pt, curr_ping_output_func == NULL || etimer_expired(&timeout_timer));
 
   if(curr_ping_output_func != NULL) {
@@ -984,7 +992,7 @@ const struct shell_command_t builtin_shell_commands[] = {
 #if NETSTACK_CONF_WITH_IPV6
   { "ip-addr",              cmd_ipaddr,               "'> ip-addr': Shows all IPv6 addresses" },
   { "ip-nbr",               cmd_ip_neighbors,         "'> ip-nbr': Shows all IPv6 neighbors" },
-  { "ping",                 cmd_ping,                 "'> ping addr': Pings the IPv6 address 'addr'" },
+  { "ping",                 cmd_ping,                 "'> ping addr lenth': Pings the IPv6 address 'addr'" },
   { "routes",               cmd_routes,               "'> routes': Shows the route entries" },
 #if BUILD_WITH_RESOLV
   { "nslookup",             cmd_resolv,               "'> nslookup': Lookup IPv6 address of host" },

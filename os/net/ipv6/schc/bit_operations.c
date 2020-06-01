@@ -89,6 +89,8 @@ void copy_bits(uint8_t DST[], uint32_t dst_pos, const uint8_t SRC[], uint32_t sr
 		if(src_val) {
 			// DEBUG_PRINTF("set bits for %d at position %d len is %d \n", DST[i+dst_pos], i+dst_pos, len);
 			set_bits(DST, i + dst_pos, 1);
+		} else {
+			clear_bits(DST, i + dst_pos, 1);
 		}
 		k++;
 	}

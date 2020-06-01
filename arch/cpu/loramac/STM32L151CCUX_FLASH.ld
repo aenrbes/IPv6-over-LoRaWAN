@@ -177,9 +177,6 @@ SECTIONS
     __bss_end__ = _ebss;
   } >RAM
 
-  /* These symbols are used by the stack check library. */
-  _stack = .;
-
   /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */
   ._user_heap_stack :
   {
@@ -190,6 +187,9 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM
+
+  /* These symbols are used by the stack check library. */
+  _stack = .;
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :
