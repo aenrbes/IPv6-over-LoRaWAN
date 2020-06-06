@@ -39,9 +39,9 @@ endif
 
 ifeq ($(NATIVE_CAN_OPTIIMIZE),1)
   ifeq ($(SMALL),1)
-    CFLAGS += -Os
+    CFLAGS += -O0
   else
-    CFLAGS += -O2
+    CFLAGS += -O0
   endif
 endif
 

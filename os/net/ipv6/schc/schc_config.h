@@ -44,7 +44,7 @@
 #define DEBUG_PRINTF(...) 				printf(__VA_ARGS__) //log_print_string(__VA_ARGS__)
 
 // the number of ack attempts
-#define MAX_ACK_REQUESTS				3
+#define MAX_ACK_REQUESTS				2
 
 // the number of FCN bits
 #define FCN_SIZE_BITS					3

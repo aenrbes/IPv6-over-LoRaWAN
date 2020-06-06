@@ -14,7 +14,7 @@
 const struct schc_rule_t schc_rule_1 = { { 0x01 }, &compression_rule_1, NOT_FRAGMENTED, 0, 0, 0, 0 };
 const struct schc_rule_t schc_rule_2 = { { 0x02 }, &compression_rule_1, NO_ACK, 1, 0, 0, 0 };
 const struct schc_rule_t schc_rule_3 = { { 0x03 }, &compression_rule_1, ACK_ON_ERROR, 3, 6, 1, 0 };
-const struct schc_rule_t schc_rule_4 = { { 0x04 }, &compression_rule_1, ACK_ALWAYS, 2, 1, 1, 0 };
+const struct schc_rule_t schc_rule_4 = { { 0x04 }, &compression_rule_1, ACK_ALWAYS, 2, 2, 1, 0 };
 //note: FCN_SIZE must larger than 1
 
 // todo #define

@@ -109,7 +109,7 @@ timer_handler(void* user_data)
 {
 	struct cb_t* cb_t_ = (struct cb_t*) user_data;
 	schc_fragmentation_t* conn = cb_t_->conn;
-
+  LOG_DBG("_____________________timer_handler()________________________\n");
   ctimer_stop(&cb_t_->timer);
 	cb_t_->cb(conn);
 }
@@ -131,7 +131,21 @@ set_tx_timer(void (*callback)(void *conn),
 	if(tx_cb_head == NULL) {
 		tx_cb_head = cb_t_;
 	} else {
+    if(curr->conn == cb_t_->conn) {
+      memb_free(&timer_cb_memb, cb_t_);
+      ctimer_set(&curr->timer, delay, timer_handler, curr);
+      LOG_DBG(
+			"set_tx_timer(): reschedule next tx callback %d s \n\r\n", delay / 1000);
+      return;
+    }
 		while(curr->next != NULL) {
+      if(curr->conn == cb_t_->conn) {
+        memb_free(&timer_cb_memb, cb_t_);
+        ctimer_set(&curr->timer, delay, timer_handler, curr);
+        LOG_DBG(
+				"set_tx_timer(): reschedule next tx callback %d s \n\r\n", delay / 1000);
+        return;
+      }
 			curr = curr->next;
 		}
 		curr->next = cb_t_;
@@ -163,7 +177,21 @@ set_rx_timer(void (*callback)(void *conn),
 	if(rx_cb_head == NULL) {
 		rx_cb_head = cb_t_;
 	} else {
+    if(curr->conn == cb_t_->conn) {
+      memb_free(&timer_cb_memb, cb_t_);
+      ctimer_restart(&curr->timer);
+      LOG_DBG(
+			"set_rx_timer(): reschedule rx callback %d s \n\r\n", delay / 1000);
+      return;
+    }
 		while(curr->next != NULL) {
+      if(curr->conn == cb_t_->conn) {
+        memb_free(&timer_cb_memb, cb_t_);
+        ctimer_restart(&curr->timer);
+        LOG_DBG(
+				"set_rx_timer(): reschedule rx callback %d s \n\r\n", delay / 1000);
+        return;
+      }
 			curr = curr->next;
 		}
 		curr->next = cb_t_;
@@ -444,9 +472,9 @@ schc_drv_output(const linkaddr_t *localdest)
 	tx_conn.RULE_SIZE = RULE_SIZE_BITS;
 
 #if UIP_CONF_ROUTER
-	tx_conn.MODE = NO_ACK;
+	tx_conn.MODE = ACK_ALWAYS;
 #else
-  tx_conn.MODE = NO_ACK;
+  tx_conn.MODE = ACK_ALWAYS;
 #endif
 
 	tx_conn.post_timer_task = &set_tx_timer;

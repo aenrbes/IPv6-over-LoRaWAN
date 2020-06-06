@@ -4,18 +4,21 @@
 * Based on Contiki-NG-4.4, LoRaMac-node, libschc, ChirpStack
 
 ## Introduction
-Ping between device-node, border-router and host is tested. lora node CoAP server is tested.
+Ping between device-nodes, border-router and host is tested. lora node CoAP server is tested.(in
+ 6lowpan mode, schc NO_ACK and ACK_ALWAYS mode)
+
 * Contiki-NG : works as layer 3 and above of IPv6 protocol stack for both node and server side,
 and can build applications easily on top of the stack.
-* libschc : libschc is a C implementation of the Static Context Header Compression,
-works as the adaptation layer between IP and MAC layer, it provide both the compression
-and the fragmentation mechanism.Note that I found that libschc's internal state machine
-still has some bugs, so for now only NO_ACK mode is tested very basically.As an alternative,
+* libschc : libschc is a C implementation of the Static Context Header Compression, it is a header
+compression technique used in LPWAN. It works as the adaptation layer between IP and MAC layer,
+provide both the compression and the fragmentation mechanism.
+* libschc NOTE: libschc is work in progress, so I found libschc's internal state machine still has
+some bugs, for now only NO_ACK and ACK_ALWAYS fragmentation mode works and is tested. As an alternative,
 6LoWPAN provided by contiki-ng can be used instead of libschc, the following test images are
 all in the case of using 6LoWPAN.
-* LoRaMac-node : provide LoRaWAN node side MAC layer and the bottom driver used by contiki-ng such
+* LoRaMac-node : provide LoRaWAN node side MAC layer and the bottom layer driver used by contiki-ng such
 as RTC, UART...
-* ChirpStack : works as LoRaWAN server on the host.ChirpStack provide MQTT integration whick can
+* ChirpStack : works as LoRaWAN server on the host. ChirpStack provide MQTT integration whick can
 be used to send and receive device data.
 
 * Architecture:
@@ -65,18 +68,18 @@ to setup up LoRaWAN device configuration, for now we use a classC device.
              make TARGET=loramac
 
 6. Flash hello-world.hex into lora node 151.
-7. You can use ping command to ping each other. Have fun!
+7. You can use ping command to ping each other now. Have fun!
 
 ## test picture
-1. CoAP test, lora node work as CoAP server, use CoAP client from host.
+1. CoAP test, lora node work as CoAP server, use CoAP client in host (6lowpan).
 
-![](./test-picture/coap-hello-world.png "coap hello world")
+![](./test-picture/coap-hello-world(6lowpan).png "coap hello world")
 
-2. Ping test, host ping lora node.
+2. Ping test, lora node 0 ping lora node 2 (schc).
 
-![](./test-picture/host_ping_dev.png "host ping dev")
+![](./test-picture/host_ping_dev.png "node ping node")
 
-3. other test picture is under test-picture/
+3. other test picture is under test-picture/(include node ping host...)
 
 ## note
 If you want to use 6LoWPAN, you need to checkout to commit named "add downlink retry",
@@ -84,10 +87,14 @@ the downlink retry does not work perfectly, it often miss ack from device node,
 causes a lot of wasted transmission time.
 
 ## todo
-Fix libschc.
+Fix libschc further to support ACK_ON_ERROR and ACK_ALWAYS fragmentation mode.
 
 ## find out more:
 
 * Contiki-NG: https://github.com/contiki-ng/contiki-ng
 * LoRaMac-node: https://github.com/Lora-net/LoRaMac-node
 * libschc: https://github.com/imec-idlab/libschc
+* ChirpStack: https://www.chirpstack.io/
+
+## author's email 
+* 1340247461@qq.com, hctang
