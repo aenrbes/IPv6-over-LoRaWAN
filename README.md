@@ -79,7 +79,11 @@ to setup up LoRaWAN device configuration, for now we use a classC device.
 
 ![](./test-picture/node-long-ping-node(schc).png "node ping node")
 
-3. other test picture is under test-picture/(include node ping host...)
+3. Hardware platform.
+
+![](./test-picture/hardware-platform.png "hardware platform")
+
+4. other test picture is under test-picture/(include node ping host...)
 
 ## note
 If you want to use 6LoWPAN, you need to checkout to commit named "add downlink retry",
