@@ -9,13 +9,13 @@ Ping between device-nodes, border-router and host is tested. lora node CoAP serv
 
 * Contiki-NG : works as layer 3 and above of IPv6 protocol stack for both node and server side,
 and can build applications easily on top of the stack.
-* libschc : libschc is a C implementation of the Static Context Header Compression, it is a header
+* libschc : libschc is a C implementation of the Static Context Header Compression(see RFC8724), it is a header
 compression technique used in LPWAN. It works as the adaptation layer between IP and MAC layer,
-provide both the compression and the fragmentation mechanism.
-* libschc NOTE: libschc is work in progress, so I found libschc's internal state machine still has
+provide both the compression and the fragmentation mechanism. In the following tests, it is assumed that the
+MAC layer MTU is 51 byte.
+* libschc NOTE: libschc is work in progress, it's internal state machine still has
 some bugs, for now only NO_ACK and ACK_ALWAYS fragmentation mode works and is tested. As an alternative,
-6LoWPAN provided by contiki-ng can be used instead of libschc, the following test images are
-all in the case of using 6LoWPAN.
+6LoWPAN provided by contiki-ng can be used instead of libschc.
 * LoRaMac-node : provide LoRaWAN node side MAC layer and the bottom layer driver used by contiki-ng such
 as RTC, UART...
 * ChirpStack : works as LoRaWAN server on the host. ChirpStack provide MQTT integration whick can
@@ -23,20 +23,20 @@ be used to send and receive device data.
 
 * Architecture:
 
-        node(contiki-ng)                              border router(contiki-ng)              Host(raspbian)
+        node(contiki-ng)                              border router(contiki-ng)           Host(raspbian/ubuntu)
         +--------------+                                  +--------------+                   +---------+
         |App1 App2 App3|                                  |App1 App2 App3|                   | App1 ...|
         |              |                                  |              |   +-----------+   |         |
         |      UDP     |                                  |      UDP     |   |           |   |   UDP   |
         |     IPv6     |                                  |     IPv6     +---+ /dev/tun0 +---+  IPv6   |
         | 6LOWPAN/SCHC |                                  | 6LOWPAN/SCHC |   |           |   |         |
-        |    LoRaMac   |                                  |              |   +-----------+   +---------+
-        +-------+------+                                  +--------------+ 
-         |                          ChirpStack               |
-         |  +-------+     +-------+    +-----------+         |
-         +~ |Gateway| === |Network| == |Application|..... APPserver MQTT integration ....
-            +-------+     |server |    |server     |
-                          +-------+    +-----------+
+        |    LoRaMac   |                                  | libmosquitto |   +-----------+   +---------+
+        +-------+------+                                  +---------+----+ 
+                |                          ChirpStack               |
+                |  +-------+     +-------+    +-----------+         |
+                +~ |Gateway| === |Network| == |Application|..... APPserver MQTT integration ....
+                   +-------+     |server |    |server     |
+                                 +-------+    +-----------+
 
 ## howto
 
@@ -75,19 +75,18 @@ to setup up LoRaWAN device configuration, for now we use a classC device.
 
 ![](./test-picture/coap-hello-world(6lowpan).png "coap hello world")
 
-2. Ping test, lora node 0 ping lora node 2 (schc).
+2. Ping test, lora node B ping lora node A (schc).
 
-![](./test-picture/host_ping_dev.png "node ping node")
+![](./test-picture/node-long-ping-node(schc).png "node ping node")
 
 3. other test picture is under test-picture/(include node ping host...)
 
 ## note
 If you want to use 6LoWPAN, you need to checkout to commit named "add downlink retry",
-the downlink retry does not work perfectly, it often miss ack from device node,
-causes a lot of wasted transmission time.
+the downlink retry does not work perfectly, it often miss ack from device node.
 
 ## todo
-Fix libschc further to support ACK_ON_ERROR and ACK_ALWAYS fragmentation mode.
+Fix libschc further to support ACK_ON_ERROR fragmentation mode.
 
 ## find out more:
 
