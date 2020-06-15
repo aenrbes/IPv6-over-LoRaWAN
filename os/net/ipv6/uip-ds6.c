@@ -67,7 +67,7 @@ static uint16_t rand_time;                                      /**< random time
 #endif
 #else /* UIP_CONF_ROUTER */
 struct etimer uip_ds6_timer_rs;                                 /**< RS timer, to schedule RS sending */
-static uint8_t rscount;                                         /**< number of rs already sent */
+static uint8_t rscount = 0;                                         /**< number of rs already sent */
 #endif /* UIP_CONF_ROUTER */
 
 /** \name "DS6" Data structures */

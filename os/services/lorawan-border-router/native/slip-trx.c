@@ -312,7 +312,7 @@ slip_init(void)
   mosquitto_connect_callback_set(mosq, on_connect);
   mosquitto_message_callback_set(mosq, on_message_callback);
 
-  rc = mosquitto_connect(mosq, "localhost", 1883, 300);
+  rc = mosquitto_connect(mosq, "10.42.0.63", 1883, 300);
   if(rc){
     goto destroy;
   }

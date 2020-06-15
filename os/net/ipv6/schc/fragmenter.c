@@ -1407,11 +1407,11 @@ static uint8_t wait_end(schc_fragmentation_t* rx_conn, schc_mbuf_t* tail) {
  *
  */
 int8_t schc_reassemble(schc_fragmentation_t* rx_conn) {
+LOG_DBG("____________schc_reassemble()___________\n");
 	if (rx_conn->timer_flag && !rx_conn->input) { // inactivity timer expired
 			goto skip_fetch_tail;
 	}
 
-	uint8_t recv_mic[MIC_SIZE_BYTES] = { 0 };
 	schc_mbuf_t* tail = get_mbuf_tail(rx_conn->head); // get last received fragment
 
 	LOG_DBG("schc_reassemble(): copy tail bits...!\n");
@@ -1435,7 +1435,7 @@ int8_t schc_reassemble(schc_fragmentation_t* rx_conn) {
 		set_conn_frag_cnt(rx_conn, fcn);
 	}
 
-	mbuf_overwrite(&rx_conn->head, tail->frag_cnt, tail);
+	mbuf_overwrite(&rx_conn->head, rx_conn->frag_cnt, NULL);
 	tail->frag_cnt = rx_conn->frag_cnt; // update tail frag count
 
 	if(rx_conn->input) { // set inactivity timer if the loop was triggered by a fragment input
@@ -1477,7 +1477,7 @@ skip_fetch_tail:
 					rx_conn->ack.mic = 0; // bitmap will be sent when c = 0
 					send_ack(rx_conn); // send local bitmap
 				} else if (fcn == get_max_fcn_value(rx_conn)) { // all-1
-					if (!empty_all_1(tail, rx_conn)) {
+					// if (!empty_all_1(tail, rx_conn)) {
 						LOG_DBG("all-1\r\n");
 						set_local_bitmap(rx_conn);
 						if(!mic_correct(rx_conn)) { // mic wrong
@@ -1491,9 +1491,9 @@ skip_fetch_tail:
 							rx_conn->input = 0;
 							return 2; // stay alive to answer lost acks
 						}
-					} else {
-						discard_fragment(rx_conn);
-					}
+					// } else {
+					// 	discard_fragment(rx_conn);
+					// }
 					send_ack(rx_conn);
 				}
 			}
@@ -1526,9 +1526,9 @@ skip_fetch_tail:
 					send_ack(rx_conn);
 				} else if (fcn == get_max_fcn_value(rx_conn)) { // all-1
 					LOG_DBG("all-1\r\n");
-					if (empty_all_1(tail, rx_conn)) {
-						discard_fragment(rx_conn); // remove last fragment (empty)
-					} else {
+					// if (empty_all_1(tail, rx_conn)) {
+					// 	discard_fragment(rx_conn); // remove last fragment (empty)
+					// } else {
 						rx_conn->window = !rx_conn->window; // set expected window to next window
 						if(!mic_correct(rx_conn)) { // mic wrong
 							rx_conn->RX_STATE = WAIT_END;
@@ -1542,7 +1542,7 @@ skip_fetch_tail:
 							return 2; // stay alive to answer lost acks
 						}
 						set_local_bitmap(rx_conn);
-					}
+					// }
 					send_ack(rx_conn);
 				}
 			} else if (window == rx_conn->window) { // expected window
@@ -1844,7 +1844,7 @@ static void tx_fragment_resend(schc_fragmentation_t *tx_conn) {
 
 	LOG_DBG("tx_fragment_resend(): get_next_fragment_from_bitmap: %d\r\n", get_next_fragment_from_bitmap(tx_conn));
 
-	if (get_next_fragment_from_bitmap(tx_conn) - 1 == get_max_fcn_value(tx_conn)) {
+	if (get_next_fragment_from_bitmap(tx_conn) == get_max_fcn_value(tx_conn)) {
 		tx_conn->frag_cnt = ((tx_conn->tail_ptr - tx_conn->bit_arr->ptr)
 				/ tx_conn->mtu) + 1;
 		tx_conn->fcn = get_max_fcn_value(tx_conn);
@@ -1912,7 +1912,7 @@ int8_t schc_fragment(schc_fragmentation_t *tx_conn) {
 	uint8_t fcn = 0;
 	uint8_t frag_cnt = 0;
 	int8_t ret = 0;
-LOG_DBG("________________ENTER schc_fragment()_________________\n");
+LOG_DBG("_____________schc_fragment()____________\n");
 	if (tx_conn->TX_STATE == INIT_TX) {
 		LOG_DBG("INIT_TX\r\n");
 		ret = init_tx_connection(tx_conn);
@@ -2269,7 +2269,7 @@ schc_fragmentation_t* schc_fragment_input(uint8_t* data, uint16_t len,
 	uint8_t* fragment;
 #if MBUF_USE_MEMPOOL
 	struct mbuf_mempool *mbuf_memp;
-	mbuf_memp = (uint8_t*) memb_alloc(&mbuf_memb); // allocate memory for fragment
+	mbuf_memp = memb_alloc(&mbuf_memb); // allocate memory for fragment
 	fragment = mbuf_memp->u8;
 #else
 	fragment = (uint8_t*) (schc_buf + buf_ptr); // take fixed memory block
@@ -2278,7 +2278,7 @@ schc_fragmentation_t* schc_fragment_input(uint8_t* data, uint16_t len,
 
 	memcpy(fragment, data, len);
 
-	int8_t err = mbuf_push(&conn->head, (uint8_t *)mbuf_memp, len);
+	int8_t err = mbuf_push(&conn->head, fragment, len);
 	LOG_DBG("schc_fragment_input(): mbuf print:\r\n");
 	mbuf_print(conn->head);
 

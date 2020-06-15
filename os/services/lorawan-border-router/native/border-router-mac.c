@@ -41,6 +41,10 @@
 #include "net/queuebuf.h"
 #include "net/netstack.h"
 #include "border-router.h"
+#include "net/linkaddr.h"
+
+#include "schc_config.h"
+
 #include <string.h>
 
 /*---------------------------------------------------------------------------*/
@@ -50,6 +54,15 @@
 #define LOG_LEVEL LOG_LEVEL_INFO
 
 #define MAX_CALLBACKS 16
+
+#if UIP_CONF_ROUTER
+struct devid_lladdr {
+    linkaddr_t lladdr;
+    uint8_t used;
+};
+
+extern struct devid_lladdr devid_lladdrs[SCHC_CONF_RX_CONNS];
+#endif
 
 /* a structure for calling back when packet data is coming back
    from radio... */
@@ -90,6 +103,7 @@ send_packet(mac_callback_t sent, void *ptr)
 {
   uint8_t buf[PACKETBUF_SIZE];
   char devEUI[17] = "\0";
+  int i;
 
   const linkaddr_t *lladdr = packetbuf_addr(PACKETBUF_ADDR_RECEIVER);
 
@@ -115,8 +129,29 @@ send_packet(mac_callback_t sent, void *ptr)
 
     /* Copy packet data */
     memcpy(&buf[0], packetbuf_dataptr(), packetbuf_datalen());
-
+#if UIP_CONF_ROUTER
+    if(linkaddr_cmp(lladdr, &linkaddr_null)) {
+      for(i = 0; i < SCHC_CONF_RX_CONNS; i++) {
+        if(devid_lladdrs[i].used && !linkaddr_cmp(&devid_lladdrs[i].lladdr, &linkaddr_null)) {
+          sprintf(devEUI, "%02x%02x%02x%02x%02x%02x%02x%02x", 
+                                            devid_lladdrs[i].lladdr.u8[0],
+                                            devid_lladdrs[i].lladdr.u8[1],
+                                            devid_lladdrs[i].lladdr.u8[2],
+                                            devid_lladdrs[i].lladdr.u8[3],
+                                            devid_lladdrs[i].lladdr.u8[4],
+                                            devid_lladdrs[i].lladdr.u8[5],
+                                            devid_lladdrs[i].lladdr.u8[6],
+                                            devid_lladdrs[i].lladdr.u8[7]);
+          LOG_INFO("multicast: devEUI: %s\n", devEUI);
+          write_to_slip(devEUI, buf, packetbuf_datalen());
+        }
+      }
+    } else {
+      write_to_slip(devEUI, buf, packetbuf_datalen());
+    }
+#else
     write_to_slip(devEUI, buf, packetbuf_datalen());
+#endif
   }
 }
 /*---------------------------------------------------------------------------*/

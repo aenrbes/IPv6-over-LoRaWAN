@@ -46,7 +46,12 @@
 #define MAX_PACKET_LENGTH		1280
 
 #if UIP_CONF_ROUTER
-static linkaddr_t devid_lladdr[SCHC_CONF_RX_CONNS];
+struct devid_lladdr {
+    linkaddr_t lladdr;
+    uint8_t used;
+};
+
+struct devid_lladdr devid_lladdrs[SCHC_CONF_RX_CONNS];
 #endif
 
 static int TX_RUNNING = 0;
@@ -59,7 +64,7 @@ struct cb_t {
     struct ctimer timer;
 };
 
-static struct cb_t *rx_cb_head = NULL;
+static struct cb_t *rx_cb_head[SCHC_CONF_RX_CONNS] = {NULL, NULL};
 static struct cb_t *tx_cb_head = NULL;
 
 // structure to keep track of the transmission
@@ -97,9 +102,10 @@ cleanup(struct cb_t* head)
   	struct cb_t* prev = NULL;
 
   	while(curr != NULL) {
+      next = curr->next;
       ctimer_stop(&curr->timer);
   		memb_free(&timer_cb_memb, curr);
-  		curr = curr->next;
+  		curr = next;
   	}
   }
 }
@@ -109,8 +115,7 @@ timer_handler(void* user_data)
 {
 	struct cb_t* cb_t_ = (struct cb_t*) user_data;
 	schc_fragmentation_t* conn = cb_t_->conn;
-  LOG_DBG("_____________________timer_handler()________________________\n");
-  ctimer_stop(&cb_t_->timer);
+  LOG_DBG("________________timer_handler()______%X____\n", user_data);
 	cb_t_->cb(conn);
 }
 
@@ -131,28 +136,19 @@ set_tx_timer(void (*callback)(void *conn),
 	if(tx_cb_head == NULL) {
 		tx_cb_head = cb_t_;
 	} else {
-    if(curr->conn == cb_t_->conn) {
-      memb_free(&timer_cb_memb, cb_t_);
-      ctimer_set(&curr->timer, delay, timer_handler, curr);
-      LOG_DBG(
-			"set_tx_timer(): reschedule next tx callback %d s \n\r\n", delay / 1000);
-      return;
-    }
-		while(curr->next != NULL) {
-      if(curr->conn == cb_t_->conn) {
+		while(curr != NULL) {
+      LOG_DBG("curr->conn %x next %x cb_t_->conn %x tx_cb_head->conn %x next %x\n", (long)curr->conn, (long)curr->next, (long)cb_t_->conn, (long)tx_cb_head->conn, (long)tx_cb_head->next);
+      if(curr->conn->device_id == cb_t_->conn->device_id) {
         memb_free(&timer_cb_memb, cb_t_);
         ctimer_set(&curr->timer, delay, timer_handler, curr);
         LOG_DBG(
-				"set_tx_timer(): reschedule next tx callback %d s \n\r\n", delay / 1000);
+				    "set_tx_timer(): reschedule next tx callback %d s(curr %x tx_cb_head %x cb_t_ %x)\n\r\n", delay / 1000, (long)curr, (long)tx_cb_head,(long)cb_t_);
         return;
       }
 			curr = curr->next;
 		}
 		curr->next = cb_t_;
 	}
-
-	counter++;
-	LOG_DBG("\n+-------- TX  %02d --------+\r\n", counter);
 
   ctimer_set(&cb_t_->timer, delay, timer_handler, cb_t_);
 
@@ -168,28 +164,25 @@ static void
 set_rx_timer(void (*callback)(void *conn),
 		uint32_t device_id, uint32_t delay, void *arg)
 {
+  int i;
 	struct cb_t* cb_t_= memb_alloc(&timer_cb_memb); // create on heap
 	cb_t_->conn = arg;
 	cb_t_->cb = callback;
   cb_t_->next = NULL;
 
-	struct cb_t* curr = rx_cb_head;
-	if(rx_cb_head == NULL) {
-		rx_cb_head = cb_t_;
+  i = cb_t_->conn->device_id - 1;
+
+	struct cb_t* curr = rx_cb_head[i];
+	if(rx_cb_head[i] == NULL) {
+		rx_cb_head[i] = cb_t_;
 	} else {
-    if(curr->conn == cb_t_->conn) {
-      memb_free(&timer_cb_memb, cb_t_);
-      ctimer_restart(&curr->timer);
-      LOG_DBG(
-			"set_rx_timer(): reschedule rx callback %d s \n\r\n", delay / 1000);
-      return;
-    }
-		while(curr->next != NULL) {
-      if(curr->conn == cb_t_->conn) {
+		while(curr != NULL) {
+      LOG_DBG("curr->conn %x next %x cb_t_->conn %x rx_cb_head->conn %x next %x\n",\
+                (long)curr->conn, (long)curr->next, (long)cb_t_->conn, (long)rx_cb_head[i]->conn, (long)rx_cb_head[i]->next);
+      if(curr->conn->device_id == cb_t_->conn->device_id) {
         memb_free(&timer_cb_memb, cb_t_);
         ctimer_restart(&curr->timer);
-        LOG_DBG(
-				"set_rx_timer(): reschedule rx callback %d s \n\r\n", delay / 1000);
+        LOG_DBG("set_rx_timer(): reschedule rx callback %d s \n\r\n", delay / 1000);
         return;
       }
 			curr = curr->next;
@@ -210,6 +203,8 @@ set_rx_timer(void (*callback)(void *conn),
 static void
 remove_timer_entry(uint32_t device_id)
 {
+  cleanup(rx_cb_head[device_id -1]);
+  rx_cb_head[device_id -1] = NULL;
 	LOG_DBG("remove_timer_entry(): remove timer entry for device with id %d \r\n", device_id);
 }
 
@@ -234,7 +229,7 @@ static void
 end_rx(schc_fragmentation_t *conn)
 {
 	LOG_DBG("end_rx(): copy mbuf contents to message buffer \r\n");
-
+  int i = conn->device_id - 1;
 	uint16_t packetlen = get_mbuf_len(conn); // calculate the length of the original packet
 	uint8_t rx_compressed_packet[1280]; // todo pass the mbuf chain to the decompressor
   direction flow_dir;
@@ -261,9 +256,9 @@ end_rx(schc_fragmentation_t *conn)
 
 	LOG_DBG("end_rx(): forward packet to IP network \r\n");
 
+  cleanup(rx_cb_head[i]);
+  rx_cb_head[i] = NULL;
 	schc_reset(conn);
-  cleanup(rx_cb_head);
-  rx_cb_head = NULL;
 
   tcpip_input();
 }
@@ -275,7 +270,7 @@ schc_drv_input(void)
   uint32_t device_id;
   linkaddr_t *src_lladdr;
 
-	LOG_DBG("\n+-------- RX  %02d --------+\r\n", counter);
+	LOG_DBG("\n+-------- schc_drv_input(void) --------+\r\n");
 
   src_lladdr = packetbuf_addr(PACKETBUF_ADDR_SENDER);
 
@@ -283,11 +278,15 @@ schc_drv_input(void)
 #if UIP_CONF_ROUTER
   for(i = 0; i < SCHC_CONF_RX_CONNS; i++) {
     device_id = i + 1;
-    if(linkaddr_cmp(&devid_lladdr[i], &linkaddr_null)) {
-      devid_lladdr[i] = *src_lladdr;
+    if(!devid_lladdrs[i].used) {
+      devid_lladdrs[i].lladdr = *src_lladdr;
+      devid_lladdrs[i].used = 1;
       break;
-    } else if (linkaddr_cmp(&devid_lladdr[i], src_lladdr)) {
+    } else if (linkaddr_cmp(&devid_lladdrs[i].lladdr, src_lladdr)) {
       break;
+    } else if (device_id >= SCHC_CONF_RX_CONNS) {
+      LOG_WARN("input: The number of nodes exceeds SCHC_CONF_RX_CONNS drop packet!\r\n");
+      return;
     }
   }
 #endif
@@ -295,11 +294,8 @@ schc_drv_input(void)
   /* Update link statistics */
   link_stats_input_callback(src_lladdr);
 
-  /* The MAC puts the lorawan payload inside the packetbuf data buffer */
-  packetbuf_ptr = packetbuf_dataptr();
-
-  if(packetbuf_datalen() == 0) {
-    LOG_WARN("input: empty packet\r\n");
+  if(packetbuf_datalen() == 0 || packetbuf_datalen() > 51) {
+    LOG_WARN("input: packetlen error\r\n");
     return;
   }
 
@@ -307,7 +303,7 @@ schc_drv_input(void)
      want to query us for it later. */
   last_rssi = (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI);
 
-	schc_fragmentation_t *conn = schc_input(packetbuf_ptr, packetbuf_datalen(),
+	schc_fragmentation_t *conn = schc_input(packetbuf_dataptr(), packetbuf_datalen(),
 			&tx_conn, device_id); // get active connection and set the correct rule for this connection
   if(!conn) {
     LOG_WARN("input: no rx_conn\r\n");
@@ -316,7 +312,7 @@ schc_drv_input(void)
 
 	if (conn != &tx_conn) { // if returned value is tx_conn: acknowledgement is received, which is handled by the library
 		conn->post_timer_task = set_rx_timer;
-		conn->dc = 30000; // retransmission timer: used for timeouts
+		conn->dc = 20000; // retransmission timer: used for timeouts
 
 		if (conn->schc_rule->mode == NOT_FRAGMENTED) { // packet was not fragmented
 			end_rx(conn);
@@ -412,24 +408,6 @@ schc_drv_output(const linkaddr_t *localdest)
     return 0;
   }
 
-  device_id = 1; // device node always use device id 0x01
-#if UIP_CONF_ROUTER
-  flow_dir = DOWN;
-  for(i = 0; i < SCHC_CONF_RX_CONNS; i++) {
-    device_id = i + 1;
-    if(linkaddr_cmp(&devid_lladdr[i], &linkaddr_null)) {
-      devid_lladdr[i] = *localdest;
-      break;
-    } else if (linkaddr_cmp(&devid_lladdr[i], localdest)) {
-      break;
-    }
-  }
-#endif
-
-    /* reset packetbuf buffer */
-  packetbuf_clear();
-  packetbuf_ptr = packetbuf_dataptr();
-
   /*
    * The destination address will be tagged to each outbound
    * packet. If the argument localdest is NULL, we are sending a
@@ -440,6 +418,28 @@ schc_drv_output(const linkaddr_t *localdest)
   } else {
     linkaddr_copy(&dest, localdest);
   }
+
+  device_id = 1; // device node always use device id 0x01
+#if UIP_CONF_ROUTER
+  flow_dir = DOWN;
+  for(i = 0; i < SCHC_CONF_RX_CONNS; i++) {
+    device_id = i + 1;
+    if(!devid_lladdrs[i].used) {
+      devid_lladdrs[i].lladdr = dest;
+      devid_lladdrs[i].used = 1;
+      break;
+    } else if (linkaddr_cmp(&devid_lladdrs[i].lladdr, &dest)) {
+      break;
+    } else if (device_id >= SCHC_CONF_RX_CONNS) {
+      LOG_WARN("output: The number of nodes exceeds SCHC_CONF_RX_CONNS drop packet!\r\n");
+      return 0;
+    }
+  }
+#endif
+
+    /* reset packetbuf buffer */
+  packetbuf_clear();
+  packetbuf_ptr = packetbuf_dataptr();
 
   LOG_INFO("output: sending IPv6 packet with len %d\r\n", uip_len);
 
@@ -461,7 +461,7 @@ schc_drv_output(const linkaddr_t *localdest)
 	schc_rule = schc_compress((uint8_t *)UIP_IP_BUF, uip_len, &bit_arr, device_id, flow_dir);
 
 	tx_conn.mtu = mac_max_payload; // network driver MTU
-	tx_conn.dc = 10000; // 10 seconds duty cycle
+	tx_conn.dc = 5000; // 5 seconds duty cycle
 	tx_conn.device_id = device_id; // the device id of the connection
 
 	tx_conn.bit_arr = &bit_arr;
@@ -472,7 +472,11 @@ schc_drv_output(const linkaddr_t *localdest)
 	tx_conn.RULE_SIZE = RULE_SIZE_BITS;
 
 #if UIP_CONF_ROUTER
-	tx_conn.MODE = ACK_ALWAYS;
+  if(localdest == NULL) {
+    tx_conn.MODE = NO_ACK;
+  } else {
+	  tx_conn.MODE = ACK_ALWAYS;
+  }
 #else
   tx_conn.MODE = ACK_ALWAYS;
 #endif
@@ -489,7 +493,7 @@ schc_drv_output(const linkaddr_t *localdest)
   last_tx_status = MAC_TX_OK;
   counter = 1;
 	// start fragmentation loop
-	LOG_DBG("+-------- TX  %02d --------+\r\n", counter);
+	LOG_DBG("+-------- schc_drv_output() --------+\r\n");
 
   /* Backup packetbuf to queuebuf. Enables preserving attributes for all framgnets */
   output_qbuf = queuebuf_new_from_packetbuf();
@@ -519,7 +523,7 @@ schc_drv_init()
   TX_RUNNING = 0;
 
 #if UIP_CONF_ROUTER
-  memset(devid_lladdr, 0, sizeof(devid_lladdr));
+  memset(devid_lladdrs, 0, sizeof(devid_lladdrs));
 #endif
 
   memb_init(&timer_cb_memb);
