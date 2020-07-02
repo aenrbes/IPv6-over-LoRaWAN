@@ -363,7 +363,7 @@ void mbuf_copy(schc_fragmentation_t *conn, uint8_t* ptr) {
 	schc_mbuf_t *curr = conn->head;
 	schc_mbuf_t *prev = NULL;
 
-	uint8_t index = 0; uint8_t first = 1; uint32_t curr_bit_offset; uint8_t byte;
+	uint16_t index = 0; uint8_t first = 1; uint32_t curr_bit_offset; uint8_t byte;
 
 	if(!conn | conn->schc_rule->mode == NOT_FRAGMENTED) {
 		int i;
@@ -677,7 +677,7 @@ static int8_t init_tx_connection(schc_fragmentation_t* conn) {
 		LOG_DBG("init_connection(): packet_length not specified \r\n");
 		return 0;
 	}
-	if(conn->bit_arr->len < conn->mtu) {
+	if(conn->bit_arr->len <= conn->mtu) {
 		LOG_DBG("init_connection(): no fragmentation needed \r\n");
 		return -1;
 	}
@@ -730,7 +730,7 @@ static int8_t init_tx_connection(schc_fragmentation_t* conn) {
 	}
 
 	if(conn->schc_rule->MAX_WND_FCN >= get_max_fcn_value(conn)) {
-		LOG_DBG("init_connection(): MAX_WIND_FCN must be smaller than all-1 \r\n");
+		LOG_DBG("init_connection(): MAX_WIND_FCN must be smaller than all-1 :%d %d\r\n", get_max_fcn_value(conn), conn->schc_rule->FCN_SIZE);
 		return 0;
 	}
 
@@ -1331,9 +1331,9 @@ static int8_t mic_correct(schc_fragmentation_t* rx_conn) {
 	mbuf_print(rx_conn->head);
 	mbuf_compute_mic(rx_conn); // compute the mic over the mbuf chain
 
-	if (!compare_bits(rx_conn->mic, recv_mic, (MIC_SIZE_BYTES * 8))) { // mic wrong
-		return 0;
-	}
+	// if (!compare_bits(rx_conn->mic, recv_mic, (MIC_SIZE_BYTES * 8))) { // mic wrong
+	// 	return 0;
+	// }
 
 	return 1;
 }

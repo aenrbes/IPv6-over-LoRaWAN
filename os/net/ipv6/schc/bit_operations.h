@@ -54,7 +54,7 @@ void and_bits(uint8_t DST[], uint8_t SRC1[], uint8_t SRC2[], uint32_t len);
 void print_bitmap(const uint8_t bitmap[], uint32_t length);
 
 // get the ceiled length in bytes
-uint8_t get_number_of_bytes_from_bits(uint16_t number_of_bits);
+uint16_t get_number_of_bytes_from_bits(uint16_t number_of_bits);
 
 // return the number of 1-bits in the value
 uint32_t get_required_number_of_bits(uint32_t value);

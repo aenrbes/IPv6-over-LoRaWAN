@@ -67,6 +67,8 @@ struct cb_t {
 static struct cb_t *rx_cb_head[SCHC_CONF_RX_CONNS] = {NULL, NULL};
 static struct cb_t *tx_cb_head = NULL;
 
+static uint8_t rx_compressed_packet[1280]; // todo pass the mbuf chain to the decompressor
+
 // structure to keep track of the transmission
 static schc_fragmentation_t tx_conn;
 
@@ -231,7 +233,7 @@ end_rx(schc_fragmentation_t *conn)
 	LOG_DBG("end_rx(): copy mbuf contents to message buffer \r\n");
   int i = conn->device_id - 1;
 	uint16_t packetlen = get_mbuf_len(conn); // calculate the length of the original packet
-	uint8_t rx_compressed_packet[1280]; // todo pass the mbuf chain to the decompressor
+
   direction flow_dir;
 
 #if UIP_CONF_ROUTER
@@ -475,10 +477,10 @@ schc_drv_output(const linkaddr_t *localdest)
   if(localdest == NULL) {
     tx_conn.MODE = NO_ACK;
   } else {
-	  tx_conn.MODE = ACK_ALWAYS;
+	  tx_conn.MODE = NO_ACK;
   }
 #else
-  tx_conn.MODE = ACK_ALWAYS;
+  tx_conn.MODE = NO_ACK;
 #endif
 
 	tx_conn.post_timer_task = &set_tx_timer;

@@ -44,7 +44,7 @@ uint32_t get_bits(const uint8_t A[], uint32_t pos, uint8_t len) {
 
 	for(i = pos; i < (len + pos); i++) {
 		uint8_t bit = A[i / 8] & 128 >> (i % 8);
-		number |= (!!bit << j);
+		number |= (bit << j);
 		j--;
 	}
 
@@ -273,7 +273,7 @@ void print_bitmap(const uint8_t bitmap[], uint32_t length) {
  * @param 	number_of_bits		the number of bits to find the number of bytes for
  *
  */
-uint8_t get_number_of_bytes_from_bits(uint16_t number_of_bits) {
+uint16_t get_number_of_bytes_from_bits(uint16_t number_of_bits) {
 	if (!(number_of_bits % 8)) { // ceil if needed
 		return (number_of_bits / 8);
 	} else {

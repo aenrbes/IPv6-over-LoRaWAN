@@ -30,7 +30,7 @@ extern uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
  * Number of times the UartPutBuffer will try to send the buffer before
  * returning ERROR
  */
-#define TX_BUFFER_RETRY_COUNT                       10
+#define TX_BUFFER_RETRY_COUNT                       100
 
 void UartInit( Uart_t *obj, uint8_t uartId, PinNames tx, PinNames rx )
 {

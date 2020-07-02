@@ -141,7 +141,8 @@ void BoardInitMcu( void )
   {
 #if defined( USE_BOOTLOADER )
     // Set the Vector Table base location at 0x3000
-    SCB->VTOR = FLASH_BASE | 0x3000;
+    extern void *g_pfnVectors;
+    SCB->VTOR = g_pfnVectors;
 #endif
     HAL_Init( );
     

@@ -1,5 +1,11 @@
 LDSCRIPT = $(CONTIKI_CPU)/STM32L151CCUX_FLASH.ld
 
+ifeq ($(OTA),1)
+	LDSCRIPT = $(CONTIKI_CPU)/STM32L151CCUX_FLASH_OTA.ld
+else
+	LDSCRIPT = $(CONTIKI_CPU)/STM32L151CCUX_FLASH.ld
+endif
+
 ### If the user-specified a Node ID, pass a define
 ifdef NODEID
   CFLAGS += -DIEEE_ADDR_NODE_ID=$(NODEID)

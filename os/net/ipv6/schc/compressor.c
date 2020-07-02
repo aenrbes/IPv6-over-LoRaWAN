@@ -880,7 +880,7 @@ uint16_t schc_decompress(schc_bitarray_t* bit_arr, uint8_t *buf,
 
 	LOG_DBG_("\r\n");
 	LOG_DBG_("+---------------------------------+\r\n");
-	LOG_DBG_("|        Recv Packet          |\r\n");
+	LOG_DBG_("|        Recv Packet              |\r\n");
 	LOG_DBG_("+---------------------------------+\r\n");
 
 	int ind;
