@@ -16,8 +16,8 @@
 //  Internal Flash
 #define CURRENT_FIRMWARE    (0x4 + 0x8000)         //  Address where the current system firmware is stored in internal flash
 //  External Flash
-#define GOLDEN_IMAGE        (CURRENT_FIRMWARE + 0x2d)           //  Address where the factory-given firmware is stored in external flash (for backup)
-#define OTA_ADDRESSES       { (CURRENT_FIRMWARE + 0x2d) }
+#define GOLDEN_IMAGE        (CURRENT_FIRMWARE + 0x34)           //  Address where the factory-given firmware is stored in external flash (for backup)
+#define OTA_ADDRESSES       { (CURRENT_FIRMWARE + 0x34) }
 extern uint8_t ota_images[1]; //  Addresses where OTA updates are stored in external flash
 
 #define OTA_RESET_VECTOR    0x4     //  RESET ISR Vector (see )
@@ -41,7 +41,7 @@ typedef struct OTAMetadata {
  *    This is just the size of the OTAMetadata_t struct, which is 4-byte
  *    aligned.  We use 14 bytes currently, so this struct will be 16 bytes.
  */
-#define OTA_METADATA_SPACE 0x100
+#define OTA_METADATA_SPACE 0x4000
 #define OTA_METADATA_LENGTH sizeof(OTAMetadata_t)
 
 void FlashRead(uint8_t *pui8DataBuffer, uint32_t ui32Address, uint32_t ui32Count);

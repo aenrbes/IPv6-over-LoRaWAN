@@ -142,21 +142,23 @@ void UartMcuDeInit( Uart_t *obj )
 
 uint8_t UartMcuPutChar( Uart_t *obj, uint8_t data )
 {
-    BoardDisableIrq( );
-    TxData = data;
+    // BoardDisableIrq( );
+    // TxData = data;
 
-    if( IsFifoFull( &obj->FifoTx ) == false )
-    {
-        FifoPush( &obj->FifoTx, TxData );
+    // if( IsFifoFull( &obj->FifoTx ) == false )
+    // {
+    //     FifoPush( &obj->FifoTx, TxData );
 
-        // Trig UART Tx interrupt to start sending the FIFO contents.
-        __HAL_UART_ENABLE_IT( &UartHandle, UART_IT_TC );
+    //     // Trig UART Tx interrupt to start sending the FIFO contents.
+    //     __HAL_UART_ENABLE_IT( &UartHandle, UART_IT_TC );
 
-        BoardEnableIrq( );
-        return 0; // OK
-    }
-    BoardEnableIrq( );
-    return 1; // Busy
+    //     BoardEnableIrq( );
+    //     return 0; // OK
+    // }
+    // BoardEnableIrq( );
+    // return 1; // Busy
+HAL_UART_Transmit(&UartHandle, &data, 1, 10000000);
+return 0;
 }
 
 uint8_t UartMcuGetChar( Uart_t *obj, uint8_t *data )

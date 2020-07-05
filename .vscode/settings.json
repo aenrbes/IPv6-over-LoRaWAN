@@ -1,6 +1,11 @@
 {
     "files.associations": {
         "*.tcc": "c",
-        "tuple": "cpp"
+        "tuple": "cpp",
+        "chrono": "c",
+        "limits": "c",
+        "algorithm": "c",
+        "typeindex": "cpp",
+        "typeinfo": "cpp"
     }
 }

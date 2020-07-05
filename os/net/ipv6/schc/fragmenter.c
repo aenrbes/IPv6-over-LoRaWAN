@@ -568,6 +568,7 @@ static unsigned int compute_mic(schc_fragmentation_t *conn, uint8_t padding) {
 	while (i < len) {
 		if(padding && ((i + 1) == len) ) { // padding of last tile
 			byte = 0x00;
+			break;
 		} else {
 			byte = conn->bit_arr->ptr[i];
 		}

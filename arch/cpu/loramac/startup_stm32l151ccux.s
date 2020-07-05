@@ -109,7 +109,8 @@ LoopFillZerobss:
     .section .text.Default_Handler,"ax",%progbits
 Default_Handler:
 Infinite_Loop:
-  b Infinite_Loop
+  mov	r0, sp	@ pass auto-saved registers as argument
+  b	do_invalid_entry
   .size Default_Handler, .-Default_Handler
 /******************************************************************************
 *

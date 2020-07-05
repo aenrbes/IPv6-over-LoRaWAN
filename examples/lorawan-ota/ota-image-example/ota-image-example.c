@@ -46,16 +46,13 @@ blink_looper()
 PROCESS_THREAD(blinker_test_loop, ev, data)
 {
   PROCESS_BEGIN();
-
   //	(1)	UART Output
   printf("OTA Image Example: Starting\n");
-
   coap_activate_resource(&res_hello, "test/hello");
   coap_activate_resource(&res_ota, "test/ota");
 
   ctimer_set( &blink_timer, (CLOCK_SECOND * 5), blink_looper, NULL);
-
-  //  (3) Get metadata about the current firmware version
+  // (3) Get metadata about the current firmware version
   OTAMetadata_t current_firmware;
   get_current_metadata( &current_firmware );
   printf("\nCurrent Firmware\n");

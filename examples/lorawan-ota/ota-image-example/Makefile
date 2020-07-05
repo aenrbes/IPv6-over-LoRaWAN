@@ -8,8 +8,8 @@ MODULES_REL += ./resources
 MODULES_REL += ../apps/ota
 CONTIKI=../../..
 
-CFLAGS += -DOTA_DEBUG=1
-OTA = 0
+CFLAGS += -DOTA_DEBUG=1 -g -DUSE_BOOTLOADER
+OTA = 1
 # Include the CoAP implementation
 include $(CONTIKI)/Makefile.dir-variables
 MODULES += $(CONTIKI_NG_APP_LAYER_DIR)/coap

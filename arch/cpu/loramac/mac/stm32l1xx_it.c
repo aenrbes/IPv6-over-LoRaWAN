@@ -36,6 +36,7 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdio.h>
 #include "stm32l1xx_it.h"
 #include "stm32l1xx_hal.h"
 
@@ -82,6 +83,71 @@ void USB_LP_IRQHandler(void)
 /******************************************************************************/
 /*            Cortex-M3 Processor Exceptions Handlers                         */
 /******************************************************************************/
+
+struct autosave_regs {
+	long uregs[8];
+};
+
+#define ARM_XPSR	uregs[7]
+#define ARM_PC		uregs[6]
+#define ARM_LR		uregs[5]
+#define ARM_R12		uregs[4]
+#define ARM_R3		uregs[3]
+#define ARM_R2		uregs[2]
+#define ARM_R1		uregs[1]
+#define ARM_R0		uregs[0]
+
+
+void dump_regs(struct autosave_regs *regs)
+{
+	printf("pc : %08lx    lr : %08lx    xPSR : %08lx\n",
+	       regs->ARM_PC, regs->ARM_LR, regs->ARM_XPSR);
+	printf("r12 : %08lx   r3 : %08lx    r2 : %08lx\n"
+		"r1 : %08lx    r0 : %08lx\n",
+		regs->ARM_R12, regs->ARM_R3, regs->ARM_R2,
+		regs->ARM_R1, regs->ARM_R0);
+}
+
+void bad_mode(void)
+{
+	while(1);
+}
+
+void do_hard_fault(struct autosave_regs *autosave_regs)
+{
+	printf("Hard fault\n");
+	dump_regs(autosave_regs);
+	bad_mode();
+}
+
+void do_mm_fault(struct autosave_regs *autosave_regs)
+{
+	printf("Memory management fault\n");
+	dump_regs(autosave_regs);
+	bad_mode();
+}
+
+void do_bus_fault(struct autosave_regs *autosave_regs)
+{
+	printf("Bus fault\n");
+	dump_regs(autosave_regs);
+	bad_mode();
+}
+
+void do_usage_fault(struct autosave_regs *autosave_regs)
+{
+	printf("Usage fault\n");
+	dump_regs(autosave_regs);
+	bad_mode();
+}
+
+void do_invalid_entry(struct autosave_regs *autosave_regs)
+{
+	printf("Exception\n");
+	dump_regs(autosave_regs);
+	bad_mode();
+}
+
 
 /**
   * @brief   This function handles NMI exception.
@@ -169,11 +235,8 @@ void HardFault_Handler(void)
 #elif defined(__GNUC__)
 void HardFault_Handler(void)
 {
-    __asm volatile( "TST LR, #4" );
-    __asm volatile( "ITE EQ" );
-    __asm volatile( "MRSEQ R0, MSP" );
-    __asm volatile( "MRSNE R0, PSP" );
-    __asm volatile( "B HardFault_Handler_C" );
+    __asm volatile( "mov	r0, sp" );
+    __asm volatile( "b	do_hard_fault" );
 }
 #else
     #warning Not supported compiler type
@@ -189,6 +252,8 @@ void HardFault_Handler(void)
   */
 void MemManage_Handler(void)
 {
+    __asm volatile( "mov	r0, sp" );
+    __asm volatile( "b	do_mm_fault" );
   /* Go to infinite loop when Memory Manage exception occurs */
   while (1)
   {
@@ -202,6 +267,8 @@ void MemManage_Handler(void)
   */
 void BusFault_Handler(void)
 {
+    __asm volatile( "mov	r0, sp" );
+    __asm volatile( "b	do_bus_fault" );
   /* Go to infinite loop when Bus Fault exception occurs */
   while (1)
   {
@@ -215,6 +282,8 @@ void BusFault_Handler(void)
   */
 void UsageFault_Handler(void)
 {
+    __asm volatile( "mov	r0, sp" );
+    __asm volatile( "b	do_usage_fault" );
    /* Go to infinite loop when Usage Fault exception occurs */
     while ( 1 )
     {

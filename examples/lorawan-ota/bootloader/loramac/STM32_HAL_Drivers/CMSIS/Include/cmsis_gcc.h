@@ -330,7 +330,8 @@ __STATIC_FORCEINLINE uint32_t __TZ_get_MSP_NS(void)
  */
 __STATIC_FORCEINLINE void __set_MSP(uint32_t topOfMainStack)
 {
-  __ASM volatile ("MSR msp, %0" : : "r" (topOfMainStack) : );
+//  __ASM volatile ("MSR msp, %0" : : "r" (topOfMainStack) : );
+  __ASM volatile ("MSR msp, %0\n" : : "r" (topOfMainStack) : "sp");
 }
 
 
