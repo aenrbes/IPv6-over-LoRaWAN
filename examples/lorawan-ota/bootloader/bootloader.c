@@ -94,26 +94,26 @@ void SystemClockConfig( void )
 
 void  DebugPrintf (char  *p_fmt, ...)
 {
-    // if(1)
-    // {
-    //     char    str[200u];
-    //     uint8_t  len;
+    if(1)
+    {
+        char    str[200u];
+        uint8_t  len;
 
-    //     va_list     vArgs;
+        va_list     vArgs;
 
 
-    //     va_start(vArgs, p_fmt);
+        va_start(vArgs, p_fmt);
 
-    //     vsprintf((char       *)str,
-    //              (char const *)p_fmt,
-    //                            vArgs);
+        vsprintf((char       *)str,
+                 (char const *)p_fmt,
+                               vArgs);
 
-    //     va_end(vArgs);
+        va_end(vArgs);
 
-    //     len = strlen(str);
+        len = strlen(str);
 
-    //     UartPutBuffer(&Uart1, (uint8_t *)str, len);
-    // }
+        UartPutBuffer(&Uart1, (uint8_t *)str, len);
+    }
 
 }
 
@@ -144,18 +144,18 @@ jump_to_image(uint32_t destination_address)
 int
 main(void)
 {
-  uint32_t i;
+  volatile uint32_t i,j;
   //SCB->VTOR = 0x8004000;
   HAL_Init( );
   SystemClockConfig( );
   FLASH_Init();
 
-  // FifoInit( &Uart1.FifoRx, UARTRxBuffer, FIFO_RX_SIZE );
-  // FifoInit( &Uart1.FifoTx, UARTTxBuffer, FIFO_TX_SIZE );
-  // Uart1.IrqNotify = NULL;
-  // UartInit( &Uart1, UART_1, UART_TX, UART_RX );
-  // UartConfig( &Uart1, RX_TX, 115200, UART_8_BIT, UART_1_STOP_BIT, NO_PARITY, NO_FLOW_CTRL );
-  // UartPutBuffer(&Uart1, "-------ota-bootloader-------\r\n", strlen("-------ota-bootloader-------\r\n"));
+  FifoInit( &Uart1.FifoRx, UARTRxBuffer, FIFO_RX_SIZE );
+  FifoInit( &Uart1.FifoTx, UARTTxBuffer, FIFO_TX_SIZE );
+  Uart1.IrqNotify = NULL;
+  UartInit( &Uart1, UART_1, UART_TX, UART_RX );
+  UartConfig( &Uart1, RX_TX, 115200, UART_8_BIT, UART_1_STOP_BIT, NO_PARITY, NO_FLOW_CTRL );
+  UartPutBuffer(&Uart1, "-------ota-bootloader-------\r\n", strlen("-------ota-bootloader-------\r\n"));
 
   //  (1) Get the metadata of whatever firmware is currently installed
   OTAMetadata_t current_firmware;
@@ -163,32 +163,45 @@ main(void)
 
   //  (2) Verify the current firmware! (Recompute the CRC over the internal flash image)
   verify_current_firmware( &current_firmware );
-
+  DebugPrintf("current_firmware\r\n");
+  print_metadata(&current_firmware);
   //  (3) Are there any newer firmware images in ext-flash?
   uint8_t newest_ota_slot = find_newest_ota_image();
   OTAMetadata_t newest_firmware;
   while( get_ota_slot_metadata( newest_ota_slot, &newest_firmware ) );
-
+  DebugPrintf("newest_firmware\r\n");
+  print_metadata(&newest_firmware);
   //  (4) Is the current image valid?
   if ( validate_ota_metadata( &current_firmware ) ) {
     if ( ( newest_ota_slot > 0 ) && (newest_firmware.version > current_firmware.version) ) {
       //  If there's a newer firmware image than the current firmware, install
       //  the newer version!
+      DebugPrintf("\r\na update_firmware start\r\n");
       update_firmware( newest_ota_slot );
-      while(1);
+      DebugPrintf("\r\nupdate_firmware down\r\n");
+        j=0;
+        while(j<16000000) j++;
       NVIC_SystemReset(); // reboot
     } else {
       //  If our image is valid, and there's nothing newer, then boot the firmware.
-      //while(1);
+      DebugPrintf("\r\njump_to_current_image\r\n");
+        j=0;
+        while(j<16000000) j++;
+
       jump_to_image( (CURRENT_FIRMWARE<<12) );
     }
   } else {
     //  If our image is not valid, install the newest valid image we have.
     //  Note: This can be the Golden Image, when newest_ota_slot = 0.
+    DebugPrintf("\r\nc update_firmware start\r\n");
     update_firmware( newest_ota_slot );
-    while(1);
+    DebugPrintf("\r\npdate_firmware down\r\n");
+        j=0;
+        while(j<16000000) j++;
+
     NVIC_SystemReset(); // reboot
   }
+  DebugPrintf("\r\nbadmode\r\n");
   //  main() *should* never return - we should have rebooted or branched
   //  to other code by now.
   while(1);

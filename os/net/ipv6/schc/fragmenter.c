@@ -29,15 +29,12 @@ static uint8_t FRAGMENTATION_BUF[MAX_MTU_LENGTH] = { 0 };
 
 static struct schc_mbuf_t MBUF_POOL[SCHC_CONF_MBUF_POOL_LEN];
 
-#if !MBUF_USE_MEMPOOL
-static uint8_t buf_ptr = 0;
-uint8_t schc_buf[STATIC_MEMORY_BUFFER_LENGTH] = { 0 };
-#else
+
 struct mbuf_mempool {
-	uint8_t u8[51]; // todo
+	uint8_t u8[64]; // todo
 };
-MEMB(mbuf_memb, struct mbuf_mempool, 30);
-#endif
+MEMB(mbuf_memb, struct mbuf_mempool, 16);
+
 
 /**
  * get the FCN value
@@ -98,10 +95,10 @@ static void mbuf_print(schc_mbuf_t *head) {
 	uint8_t i = 0; uint8_t j;
 	schc_mbuf_t *curr = head;
 	while (curr != NULL) {
-		LOG_DBG("%d: %p\r\n", curr->frag_cnt, ((struct mbuf_mempool *)curr->ptr)->u8);
+		LOG_DBG("%d: %p\r\n", curr->frag_cnt, curr->ptr);
 		// LOG_DBG("0x%X", curr);
 		for (j = 0; j < curr->len; j++) {
-			LOG_DBG_("%02X ", ((struct mbuf_mempool *)curr->ptr)->u8[j]);
+			LOG_DBG_("%02X ", curr->ptr[j]);
 			if(!((j + 1) % 12)) {
 				LOG_DBG_("\r\n");
 			}
@@ -124,7 +121,7 @@ static void mbuf_print(schc_mbuf_t *head) {
  * @return	-1			no free mbuf slot was found
  * 			 0			ok
  */
-static int8_t mbuf_push(schc_mbuf_t **head, uint8_t* data, uint16_t len) {
+static int8_t mbuf_push(schc_mbuf_t **head, struct mbuf_mempool *mbuf_memp, uint16_t len) {
 	// scroll to next free mbuf slot
 	uint32_t i;
 
@@ -145,7 +142,8 @@ static int8_t mbuf_push(schc_mbuf_t **head, uint8_t* data, uint16_t len) {
 	if(*head == NULL) {
 		*head = &MBUF_POOL[i];
 		(*head)->len = len;
-		(*head)->ptr = (uint8_t*) (data);
+		(*head)->ptr = (uint8_t*) (mbuf_memp->u8);
+		(*head)->mbuf = mbuf_memp;
 		(*head)->next = NULL;
 		(*head)->slot = i;
 		(*head)->frag_cnt = 0;
@@ -155,7 +153,8 @@ static int8_t mbuf_push(schc_mbuf_t **head, uint8_t* data, uint16_t len) {
 	MBUF_POOL[i].slot = i;
 	MBUF_POOL[i].next = NULL;
 	MBUF_POOL[i].len = len;
-	MBUF_POOL[i].ptr = (uint8_t*) (data);
+	MBUF_POOL[i].ptr = (uint8_t*) (mbuf_memp->u8);
+	MBUF_POOL[i].mbuf = mbuf_memp;
 	MBUF_POOL[i].frag_cnt = 0;
 
 	// find the last mbuf in the chain
@@ -221,11 +220,9 @@ static void mbuf_delete(schc_mbuf_t **head, schc_mbuf_t *mbuf) {
 	}
 
 	LOG_DBG("mbuf_delete(): clear slot %d in mbuf pool \r\n", slot);
-#if MBUF_USE_MEMPOOL
-	memb_free(&mbuf_memb, (struct mbuf_mempool *)mbuf->ptr);
-#else
-	memset(mbuf->ptr, 0, mbuf->len);
-#endif
+
+	memb_free(&mbuf_memb, (struct mbuf_mempool *)mbuf->mbuf);
+
 
 	// clear slot in mbuf pool
 	MBUF_POOL[slot].next = NULL;
@@ -271,7 +268,7 @@ static uint8_t get_fragmentation_header_length(schc_mbuf_t *mbuf, schc_fragmenta
 	uint32_t offset = conn->RULE_SIZE + conn->schc_rule->DTAG_SIZE + conn->schc_rule->WINDOW_SIZE
 			+ conn->schc_rule->FCN_SIZE;
 
-	uint8_t fcn = get_fcn_value(((struct mbuf_mempool *)mbuf->ptr)->u8, conn);
+	uint8_t fcn = get_fcn_value(mbuf->ptr, conn);
 
 	if (fcn == get_max_fcn_value(conn)) {
 		offset += (MIC_SIZE_BYTES * 8);
@@ -336,16 +333,16 @@ static uint8_t mbuf_get_byte(schc_mbuf_t *mbuf, schc_fragmentation_t* conn, uint
 	uint32_t remaining_offset = mbuf_bit_len - curr_offset;
 
 	if( remaining_offset > 8 ) {
-		copy_bits(byte_arr, 0, ((struct mbuf_mempool *)mbuf->ptr)->u8, curr_offset, 8);
+		copy_bits(byte_arr, 0, mbuf->ptr, curr_offset, 8);
 		*offset += 8;
 	} else if(mbuf->next != NULL) { // copy remainig bits from next mbuf and set offset accordingly
-		copy_bits(byte_arr, 0, ((struct mbuf_mempool *)mbuf->ptr)->u8, curr_offset, remaining_offset);
-		copy_bits(byte_arr, remaining_offset, ((struct mbuf_mempool *)mbuf->next->ptr)->u8,
+		copy_bits(byte_arr, 0, mbuf->ptr, curr_offset, remaining_offset);
+		copy_bits(byte_arr, remaining_offset, mbuf->next->ptr,
 				get_fragmentation_header_length(mbuf->next, conn),
 				(8 - remaining_offset));
 		*offset = (8 - remaining_offset);
 	} else { // final byte
-		copy_bits(byte_arr, 0, ((struct mbuf_mempool *)mbuf->ptr)->u8, curr_offset, remaining_offset);
+		copy_bits(byte_arr, 0, mbuf->ptr, curr_offset, remaining_offset);
 		*offset = remaining_offset;
 	}
 
@@ -368,17 +365,17 @@ void mbuf_copy(schc_fragmentation_t *conn, uint8_t* ptr) {
 	if(!conn | conn->schc_rule->mode == NOT_FRAGMENTED) {
 		int i;
 		for(i = 0; i < curr->len; i++) {
-			ptr[i] = ((struct mbuf_mempool *)curr->ptr)->u8[i];
+			ptr[i] = curr->ptr[i];
 		}
 		return;
 	}
 	while (curr != NULL) {
 		byte = 0;
 		if ((prev == NULL) && first) { // first byte(s) of compressed packet contain rule id
-			copy_bits(ptr, 0, ((struct mbuf_mempool *)curr->ptr)->u8, 0, conn->RULE_SIZE);
+			copy_bits(ptr, 0, curr->ptr, 0, conn->RULE_SIZE);
 			if (conn->RULE_SIZE <= 8) {
 				curr_bit_offset = (8 - conn->RULE_SIZE);
-				copy_bits(ptr, conn->RULE_SIZE, ((struct mbuf_mempool *)curr->ptr)->u8,
+				copy_bits(ptr, conn->RULE_SIZE, curr->ptr,
 						get_fragmentation_header_length(curr, conn),
 						curr_bit_offset);
 				first = 0;
@@ -488,10 +485,10 @@ static unsigned int mbuf_compute_mic(schc_fragmentation_t *conn) {
 	while(curr != NULL) {
 		byte = 0x00; // reset byte (which adds padding, if any)
 		if( (prev == NULL) && first) { // first byte(s) of compressed packet contain rule id
-			copy_bits(byte_arr, 0, ((struct mbuf_mempool *)curr->ptr)->u8, 0, conn->RULE_SIZE);
+			copy_bits(byte_arr, 0, curr->ptr, 0, conn->RULE_SIZE);
 			if(conn->RULE_SIZE <= 8 ) {
 				curr_bit_offset = (8 - conn->RULE_SIZE);
-				copy_bits(byte_arr, conn->RULE_SIZE, ((struct mbuf_mempool *)curr->ptr)->u8,
+				copy_bits(byte_arr, conn->RULE_SIZE, curr->ptr,
 						get_fragmentation_header_length(curr, conn),
 						curr_bit_offset);
 				first = 0;
@@ -1325,7 +1322,7 @@ static int8_t mic_correct(schc_fragmentation_t* rx_conn) {
 		return -1;
 	}
 
-	get_received_mic(((struct mbuf_mempool *)tail->ptr)->u8, recv_mic, rx_conn);
+	get_received_mic(tail->ptr, recv_mic, rx_conn);
 	LOG_DBG("mic_correct(): received MIC is %02X%02X%02X%02X\r\n", recv_mic[0], recv_mic[1],
 			recv_mic[2], recv_mic[3]);
 
@@ -1347,8 +1344,8 @@ static int8_t mic_correct(schc_fragmentation_t* rx_conn) {
  *
  */
 static uint8_t wait_end(schc_fragmentation_t* rx_conn, schc_mbuf_t* tail) {
-	uint8_t window = get_window_bit(((struct mbuf_mempool *)tail->ptr)->u8, rx_conn); // the window bit from the fragment
-	uint8_t fcn = get_fcn_value(((struct mbuf_mempool *)tail->ptr)->u8, rx_conn); // the fcn value from the fragment
+	uint8_t window = get_window_bit(tail->ptr, rx_conn); // the window bit from the fragment
+	uint8_t fcn = get_fcn_value(tail->ptr, rx_conn); // the fcn value from the fragment
 
 	LOG_DBG("WAIT END\r\n");
 	if (rx_conn->timer_flag && !rx_conn->input) { // inactivity timer expired
@@ -1417,9 +1414,9 @@ LOG_DBG("____________schc_reassemble()___________\n");
 
 	LOG_DBG("schc_reassemble(): copy tail bits...!\n");
 
-	copy_bits(rx_conn->ack.rule_id, 0, ((struct mbuf_mempool *)tail->ptr)->u8, 0, rx_conn->RULE_SIZE); // get the rule id from the fragment
-	uint8_t window = get_window_bit(((struct mbuf_mempool *)tail->ptr)->u8, rx_conn); // the window bit from the fragment
-	uint8_t fcn = get_fcn_value(((struct mbuf_mempool *)tail->ptr)->u8, rx_conn); // the fcn value from the fragment
+	copy_bits(rx_conn->ack.rule_id, 0, tail->ptr, 0, rx_conn->RULE_SIZE); // get the rule id from the fragment
+	uint8_t window = get_window_bit(tail->ptr, rx_conn); // the window bit from the fragment
+	uint8_t fcn = get_fcn_value(tail->ptr, rx_conn); // the fcn value from the fragment
 
 	LOG_DBG("schc_reassemble(): fcn is %d, window is %d\r\n", fcn, window);
 
@@ -2047,6 +2044,10 @@ LOG_DBG("_____________schc_fragment()____________\n");
 				LOG_DBG("last fragment\r\n");
 				tx_conn->fcn = 1;
 				tx_conn->TX_STATE = END_TX;
+				send_fragment(tx_conn);
+				tx_conn->end_tx();
+				schc_reset(tx_conn);
+				return SCHC_END;
 			} else {
 				LOG_DBG("normal fragment\r\n");
 				tx_conn->fcn = 0;
@@ -2267,19 +2268,12 @@ schc_fragmentation_t* schc_fragment_input(uint8_t* data, uint16_t len,
 	// if no rule was found
 	// this is a null pointer -> return function will get confused (checks for rule->mode)
 
-	uint8_t* fragment;
-#if MBUF_USE_MEMPOOL
 	struct mbuf_mempool *mbuf_memp;
 	mbuf_memp = memb_alloc(&mbuf_memb); // allocate memory for fragment
-	fragment = mbuf_memp->u8;
-#else
-	fragment = (uint8_t*) (schc_buf + buf_ptr); // take fixed memory block
-	buf_ptr += len;
-#endif
 
-	memcpy(fragment, data, len);
+	memcpy(mbuf_memp->u8, data, len);
 
-	int8_t err = mbuf_push(&conn->head, fragment, len);
+	int8_t err = mbuf_push(&conn->head, mbuf_memp, len);
 	LOG_DBG("schc_fragment_input(): mbuf print:\r\n");
 	mbuf_print(conn->head);
 

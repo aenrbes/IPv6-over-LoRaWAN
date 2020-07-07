@@ -21,14 +21,20 @@ ota-image-example: generate-metadata
 	cd ./ota-image-example;		\
 		make; 		\
 	printf "\nAdding metadata to OTA Example Image\n";
-	./generate-metadata ota-image-example/build/loramac/ota-image-example.bin 0x1 0xdeadbeef 0 # create golden image
+	./generate-metadata ota-image-example/build/loramac/ota-image-example.bin 0x1 0xdeadbeef 1 # create golden image
 	#./generate-metadata ota-image-example/ota-image-example.bin 0x1 0xdeadbeef 0 # create ota update
-	srec_cat firmware-metadata.bin -binary ota-image-example/build/loramac/ota-image-example.bin -binary -offset 0x4000 -o ota-image.bin -binary
+	srec_cat firmware-metadata.bin -binary ota-image-example/build/loramac/ota-image-example.bin -binary -offset 0x200 -o ota-image.bin -binary
 
 master-hex:
 	rm -f firmware.hex;
 	printf "\nMerging OTA Example Image with Bootloader\n"
+	#srec_cat bootloader/bootloader.bin -binary  ota-image-new.bin -binary -offset 0x38000 -o firmware.bin -binary
 	srec_cat bootloader/bootloader.bin -binary  ota-image.bin -binary -offset 0x4000 -o firmware.bin -binary
 
 flash: master-hex
 	stm32flash -w firmware.bin -S 0x8000000 -v -g 0x0 -b 115200 /dev/ttyUSB0
+
+hello:
+	rm -f firmware*.hex firmware*.bin;
+	./generate-metadata hello.bin 0x2 0xdeadbeef 1
+	srec_cat firmware-metadata.bin -binary hello.bin -binary -offset 0x200 -o ota-image.bin -binary

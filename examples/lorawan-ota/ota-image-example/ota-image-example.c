@@ -28,30 +28,22 @@
  */
 extern coap_resource_t res_hello,res_ota;
 
+PROCESS_NAME(ota_download_th);
+
 PROCESS(blinker_test_loop, "GPIO Blinker Lifecycle");
 AUTOSTART_PROCESSES(&blinker_test_loop);
 
-struct ctimer blink_timer;
-bool blink_state = false;
-
-void
-blink_looper()
-{
-  //printf("Platform does not support LED\n");
-
-  ctimer_reset( &blink_timer );
-}
 
 
 PROCESS_THREAD(blinker_test_loop, ev, data)
 {
+  static struct etimer timer;
   PROCESS_BEGIN();
   //	(1)	UART Output
   printf("OTA Image Example: Starting\n");
-  coap_activate_resource(&res_hello, "test/hello");
-  coap_activate_resource(&res_ota, "test/ota");
+  // coap_activate_resource(&res_hello, "test/hello");
+  // coap_activate_resource(&res_ota, "test/ota");
 
-  ctimer_set( &blink_timer, (CLOCK_SECOND * 5), blink_looper, NULL);
   // (3) Get metadata about the current firmware version
   OTAMetadata_t current_firmware;
   get_current_metadata( &current_firmware );
@@ -73,10 +65,14 @@ PROCESS_THREAD(blinker_test_loop, ev, data)
 
   int empty_slot = find_empty_ota_slot();
   printf("\nEmpty OTA slot: #%u\n", empty_slot);
-
-  PROCESS_YIELD();
   //  (4) OTA Download!
-  // process_start(f, NULL);
 
+  /* Setup a periodic timer that expires after 10 seconds. */
+  etimer_set(&timer, CLOCK_SECOND * 15);
+
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+
+  process_start(&ota_download_th, NULL);
+  printf("\nblinker_test_loop end\n");
   PROCESS_END();
 }

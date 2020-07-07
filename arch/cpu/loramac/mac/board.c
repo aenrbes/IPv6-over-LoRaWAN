@@ -140,7 +140,7 @@ void BoardInitMcu( void )
   if( McuInitialized == false )
   {
 #ifdef USE_BOOTLOADER
-    SCB->VTOR = 0x8008000;
+    SCB->VTOR = 0x8004200;
 #endif
     HAL_Init( );
     

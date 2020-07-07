@@ -7,6 +7,7 @@
 
 #include "contiki.h"
 #include "sys/process.h"
+#include "sys/rtimer.h"
 #include "ota-download.h"
 #include "coap-engine.h"
 #include "coap-blocking-api.h"
@@ -26,9 +27,11 @@
 #define OTA_SERVER_EP "coap://[fd00::1]"
 
 PROCESS(ota_download_th, "OTA Download Agent");
-struct process* ota_download_th_p = &ota_download_th;
 
 static coap_endpoint_t ota_server_ep;
+
+static struct rtimer rt_timer;
+static volatile uint8_t rt_timer_flag;
 
 static void
 reset_ota_buffer() {
@@ -37,6 +40,13 @@ reset_ota_buffer() {
   {
     ota_buffer[ n ] = 0xff;
   }
+}
+
+static void
+rt_callback(struct rtimer *t, void *ptr)
+{
+  PRINTF("============wait=============\n\n");
+  rt_timer_flag = 0;
 }
 
 /*******************************************************************************
@@ -53,7 +63,7 @@ firmware_chunk_handler(coap_message_t *response)
   //  (1) Parse the data payload from the CoAP response
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
-
+  rt_timer_flag = 1;
   //  (2) Copy the CoAP payload into the ota_buffer
   ota_bytes_received += len;
   PRINTF("Downloaded %u bytes\t(%#lx)", len, ota_bytes_received);
@@ -104,6 +114,8 @@ firmware_chunk_handler(coap_message_t *response)
     reset_ota_buffer();
     PRINTF("==============================================\n\n");
   }
+  rtimer_set(&rt_timer, RTIMER_NOW() + RTIMER_SECOND*11, 1, rt_callback, NULL);
+  while(rt_timer_flag);
 }
 
 PROCESS_THREAD(ota_download_th, ev, data)

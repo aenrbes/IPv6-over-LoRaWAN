@@ -268,7 +268,7 @@ end_rx(schc_fragmentation_t *conn)
 static void
 schc_drv_input(void)
 {
-  int i;
+  int i,j;
   uint32_t device_id;
   linkaddr_t *src_lladdr;
 
@@ -304,6 +304,16 @@ schc_drv_input(void)
   /* Save the RSSI of the incoming packet in case the upper layer will
      want to query us for it later. */
   last_rssi = (signed short)packetbuf_attr(PACKETBUF_ATTR_RSSI);
+
+	LOG_DBG("schc_drv_input len:%d\r\n", packetbuf_datalen());
+	// LOG_DBG("0x%X", curr);
+	for (j = 0; j < packetbuf_datalen(); j++) {
+		LOG_DBG_("%02X ", (packetbuf_dataptr())[j]);
+		if(!((j + 1) % 12)) {
+			LOG_DBG_("\r\n");
+		}
+	}
+	LOG_DBG_("\r\n");
 
 	schc_fragmentation_t *conn = schc_input(packetbuf_dataptr(), packetbuf_datalen(),
 			&tx_conn, device_id); // get active connection and set the correct rule for this connection

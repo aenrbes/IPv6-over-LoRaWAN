@@ -25,7 +25,7 @@ OBJECTDIR=obj_$(TARGET)
 
 CFLAGS += -DUSE_HAL_DRIVER -DSTM32L151xC -DUSE_BAND_470 -DUSE_DEBUGGER -DUSE_NO_TIMER
 # Optimize for code size
-CFLAGS += -O0
+CFLAGS += -Os
 
 LDSCRIPT = ota-bootloader.ld
 LDFLAGS += --specs=nosys.specs -static --specs=nano.specs -Wall

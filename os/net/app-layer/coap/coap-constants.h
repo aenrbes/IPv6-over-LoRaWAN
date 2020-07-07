@@ -48,7 +48,7 @@
 #define COAP_DEFAULT_SECURE_PORT             5684
 
 #define COAP_DEFAULT_MAX_AGE                 60
-#define COAP_RESPONSE_TIMEOUT                3
+#define COAP_RESPONSE_TIMEOUT                90
 #define COAP_RESPONSE_RANDOM_FACTOR          1.5
 #define COAP_MAX_RETRANSMIT                  4
 

@@ -325,8 +325,8 @@ nbr_table_item_t *
 nbr_table_head(nbr_table_t *table)
 {
   /* Get item from first key */
-  printf("+++++++++++nbr_table_keys: %x++++++++++++++\n",nbr_table_keys);
-  printf("+++++++++++*nbr_table_keys: %x++++++++++++++\n",*nbr_table_keys);
+  printf("+++++++++++nbr_table_keys: %x++++++++++\n",(uint32_t)nbr_table_keys);
+  printf("+++++++++++*nbr_table_keys: %x++++++++++\n",(uint32_t)*nbr_table_keys);
   nbr_table_item_t *item = item_from_key(table, list_head(nbr_table_keys));
   /* Item is the first neighbor, now check is it is in the current table */
   if(nbr_get_bit(used_map, table, item)) {

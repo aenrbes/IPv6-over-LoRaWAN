@@ -62,6 +62,7 @@ typedef struct schc_mbuf_t {
 	uint32_t slot;
 	/* start of memory block */
 	uint8_t* ptr;
+	void *mbuf;
 	/* length of the fragment */
 	uint16_t len;
 	/* the fragment to which the mbuf belongs to */

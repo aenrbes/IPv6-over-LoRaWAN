@@ -38,7 +38,7 @@ extern Uart_t Uart1;
 /* 获取页地址，X=0~STM32FLASH_PAGE_NUM */
 #define ADDR_FLASH_PAGE_X(X)    (STM32FLASH_BASE | (X * STM32FLASH_PAGE_SIZE))
 
-uint8_t ota_images[1] = OTA_ADDRESSES;
+uint32_t ota_images[1] = OTA_ADDRESSES;
 
 static uint32_t FlashBuffer[STM32FLASH_PAGE_SIZE >> 2];
 
@@ -79,9 +79,9 @@ FLASH_WriteNotCheck(uint32_t Address, const uint32_t *Buffer, uint32_t NumToWrit
 		if (Address > addrmax)
 			break;
 
-		// HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address, *Buffer);
-		// if ( (*(__IO uint32_t *)Address) != *Buffer )
-		// 	break;
+		HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, Address, *Buffer);
+		if ( (*(__IO uint32_t *)Address) != *Buffer )
+			break;
 
 		nwrite--;
 		Buffer++;
@@ -150,8 +150,8 @@ FLASH_Write(uint32_t Address, const uint32_t *Buffer, uint32_t NumToWrite)
 			pEraseInit.TypeErase = FLASH_TYPEERASE_PAGES;
 			pEraseInit.PageAddress = STM32FLASH_BASE + pagepos * STM32FLASH_PAGE_SIZE;
 			pEraseInit.NbPages = 1;
-			//if (HAL_FLASHEx_Erase(&pEraseInit, &PageError) != HAL_OK)  +++++++++++++++++++++++++++++++++++++++++
-			//	break;
+			if (HAL_FLASHEx_Erase(&pEraseInit, &PageError) != HAL_OK)
+				break;
 
 			/* 复制到缓存 */
 			for (index = 0; index < pagefre; index++)
@@ -270,11 +270,11 @@ crc16(uint16_t crc, uint8_t val)
 void
 print_metadata( OTAMetadata_t *metadata )
 {
-  PRINTF("Firmware Size: %#lx\n", metadata->size);
-  PRINTF("Firmware Version: %#x\n", metadata->version);
-  PRINTF("Firmware UUID: %#lx\n", metadata->uuid);
-  PRINTF("Firmware CRC: %#x\n", metadata->crc);
-  PRINTF("Firmware CRC: %#x\n", metadata->crc_shadow);
+  PRINTF("Firmware Size: %#lx\r\n", metadata->size);
+  PRINTF("Firmware Version: %#x\r\n", metadata->version);
+  PRINTF("Firmware UUID: %#lx\r\n", metadata->uuid);
+  PRINTF("Firmware CRC: %#x\r\n", metadata->crc);
+  PRINTF("Firmware CRC: %#x\r\n", metadata->crc_shadow);
 }
 
 /*******************************************************************************
@@ -373,7 +373,7 @@ overwrite_ota_slot_metadata( uint8_t ota_slot, OTAMetadata_t *ota_slot_metadata 
 int
 verify_current_firmware( OTAMetadata_t *current_firmware_metadata )
 {
-  PRINTF("Recomputing CRC16 on internal flash image within range [0x2000, 0x1B000).\n");
+  PRINTF("Recomputing CRC16 on internal flash image within range [0x2000, 0x1B000).\r\n");
 
   //  (1) Determine the external flash address corresponding to the OTA slot
   uint32_t firmware_address = (CURRENT_FIRMWARE<<12) + OTA_METADATA_SPACE;
@@ -394,15 +394,15 @@ verify_current_firmware( OTAMetadata_t *current_firmware_metadata )
       imageCRC = crc16(imageCRC, _word[idx]);
     }
     firmware_address += 4; // move 4 bytes forward
-    //PRINTF("\t=>%#x\n", imageCRC);
+    //PRINTF("\t=>%#x\r\n", imageCRC);
   }
 
   //  (5) Compute two more CRC iterations using value of 0
   imageCRC = crc16(imageCRC, 0);
   imageCRC = crc16(imageCRC, 0);
 
-  PRINTF("CRC Calculated: %#x\n", imageCRC);
-
+  PRINTF("CRC Calculated: %#x\r\n", imageCRC);
+  PRINTF("CRC image: %x\r\n", current_firmware_metadata->crc);
   //  (6) Update the CRC shadow with our newly calculated value
   current_firmware_metadata->crc_shadow = imageCRC;
 
@@ -466,14 +466,14 @@ verify_ota_slot( uint8_t ota_slot )
       imageCRC = crc16(imageCRC, _word[idx]);
     }
     ota_image_address += 4; // move 4 bytes forward
-    //PRINTF("\t=>%#x\n", imageCRC);
+    //PRINTF("\t=>%#x\r\n", imageCRC);
   }
 
   //  (5) Compute two more CRC iterations using value of 0
   imageCRC = crc16(imageCRC, 0);
   imageCRC = crc16(imageCRC, 0);
 
-  PRINTF("CRC Calculated: %#x\n", imageCRC);
+  PRINTF("CRC Calculated: %#x\r\n", imageCRC);
 
   //  (6) Update the CRC shadow with our newly calculated value
   ota_metadata.crc_shadow = imageCRC;
@@ -559,9 +559,9 @@ find_matching_ota_slot( uint16_t version )
   }
 
   if ( matching_slot == -1 ) {
-    PRINTF("No OTA slot matches Firmware v%i\n", version);
+    PRINTF("No OTA slot matches Firmware v%i\r\n", version);
   } else {
-    PRINTF("OTA slot #%i matches Firmware v%i\n", matching_slot, version);
+    PRINTF("OTA slot #%i matches Firmware v%i\r\n", matching_slot, version);
   }
 
   return matching_slot;
@@ -592,7 +592,7 @@ find_empty_ota_slot()
     }
   }
 
-  PRINTF("Could not find any empty OTA slots!\nSearching for oldest OTA slot...\n");
+  PRINTF("Could not find any empty OTA slots!\r\nSearching for oldest OTA slot...\r\n");
   //  If execution goes this far, no empty slot was found.  Now, we look for
   //  the oldest OTA slot instead.
   return find_oldest_ota_image();
@@ -637,7 +637,7 @@ find_oldest_ota_image()
     }
   }
 
-  PRINTF("Oldest OTA slot: #%u; Firmware v%u\n", oldest_ota_slot, oldest_firmware_version);
+  PRINTF("Oldest OTA slot: #%u; Firmware v%u\r\n", oldest_ota_slot, oldest_firmware_version);
 
   return oldest_ota_slot;
 }
@@ -675,7 +675,7 @@ find_newest_ota_image()
     }
   }
 
-  PRINTF("Newest OTA slot: #%u; Firmware v%u\n", newest_ota_slot, newest_firmware_version);
+  PRINTF("Newest OTA slot: #%u; Firmware v%u\r\n", newest_ota_slot, newest_firmware_version);
   return newest_ota_slot;
 }
 
@@ -711,13 +711,13 @@ int
 erase_ota_image( uint8_t ota_slot )
 {
   //  (1) Get page address of the ota_slot in ext-flash
-  uint8_t ota_image_base_address;
+  uint32_t ota_image_base_address;
   if ( ota_slot ) {
     ota_image_base_address = ota_images[ (ota_slot-1) ];
   } else {
     ota_image_base_address = GOLDEN_IMAGE;
   }
-  PRINTF("Erasing OTA slot %u [%#x, %#x)...\n", ota_slot, (ota_image_base_address<<12), ((ota_image_base_address+25)<<12));
+  PRINTF("Erasing OTA slot %u [%#x, %#x)...\r\n", ota_slot, (ota_image_base_address<<12), ((ota_image_base_address+25)<<12));
 
   //  (2) Erase each page in the OTA download slot!
   for (int page=0; page<25; page++) {
@@ -778,10 +778,11 @@ update_firmware( uint8_t ota_slot )
   //      Overwrite them with the corresponding image pages from
   //      external flash.
   //  Each firmware image is 25 pages big at most
-  for (uint8_t sector_num=0; sector_num<10; sector_num++) {
+  for (uint8_t sector_num=0; sector_num<4; sector_num++) {
+    DebugPrintf("update_firmware_page:%d\r\n",sector_num);
     while( update_firmware_page( (ota_image_address + (sector_num << 12)), ((sector_num+CURRENT_FIRMWARE) << 12) ) );
   }
-
+  DebugPrintf("down!\r\n");
   //  (4) Reboot
 
 
@@ -808,7 +809,7 @@ store_firmware_data( uint32_t ext_address, uint8_t *data, size_t data_length )
   //  (2) Copy page_data into external flash chip.
   FLASH_Write( ext_address, (uint32_t *)data, data_length >> 2);
 
-  PRINTF("[external-flash]:\tFirmware data successfully written to %#lx.\n", ext_address);
+  PRINTF("[external-flash]:\tFirmware data successfully written to %x.\n", ext_address);
   return 0;
 }
 

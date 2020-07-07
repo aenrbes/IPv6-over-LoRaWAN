@@ -42,7 +42,7 @@
 
 extern struct process* ota_download_th_p;
 
-static void res_get_handler(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
+static void res_put_handler(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 
 /*
  * A handler function named [resource name]_handler must be implemented for each RESOURCE.
@@ -52,36 +52,36 @@ static void res_get_handler(coap_message_t *request, coap_message_t *response, u
  */
 RESOURCE(res_ota,
          "title=\"ota: ?len=0..\";rt=\"Control\"",
-         res_get_handler,
          NULL,
          NULL,
+         res_put_handler,
          NULL);
 
 static void
-res_get_handler(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
+res_put_handler(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
-  const char *len = NULL;
-  /* Some data that has the length up to REST_MAX_CHUNK_SIZE. For more, see the chunk resource. */
-  char const *const message = "node ota start! ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy";
-  int length = 15; /*          |<----------->| */
+  // const char *len = NULL;
+  // /* Some data that has the length up to REST_MAX_CHUNK_SIZE. For more, see the chunk resource. */
+  // char const *const message = "node ota start! ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy";
+  // int length = 15; /*          |<----------->| */
 
-  /* The query string can be retrieved by rest_get_query() or parsed for its key-value pairs. */
-  if(coap_get_query_variable(request, "len", &len)) {
-    length = atoi(len);
-    if(length < 0) {
-      length = 0;
-    }
-    if(length > REST_MAX_CHUNK_SIZE) {
-      length = REST_MAX_CHUNK_SIZE;
-    }
-    memcpy(buffer, message, length);
-  } else {
-    memcpy(buffer, message, length);
-  }
+  // /* The query string can be retrieved by rest_get_query() or parsed for its key-value pairs. */
+  // if(coap_get_query_variable(request, "len", &len)) {
+  //   length = atoi(len);
+  //   if(length < 0) {
+  //     length = 0;
+  //   }
+  //   if(length > REST_MAX_CHUNK_SIZE) {
+  //     length = REST_MAX_CHUNK_SIZE;
+  //   }
+  //   memcpy(buffer, message, length);
+  // } else {
+  //   memcpy(buffer, message, length);
+  // }
 
-  coap_set_header_content_format(response, TEXT_PLAIN); /* text/plain is the default, hence this option could be omitted. */
-  coap_set_header_etag(response, (uint8_t *)&length, 1);
-  coap_set_payload(response, buffer, length);
+  // coap_set_header_content_format(response, TEXT_PLAIN); /* text/plain is the default, hence this option could be omitted. */
+  // coap_set_header_etag(response, (uint8_t *)&length, 1);
+  // coap_set_payload(response, buffer, length);
 
   process_poll(ota_download_th_p);
 
