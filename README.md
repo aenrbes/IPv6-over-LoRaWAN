@@ -2,10 +2,12 @@
 
 # (WIP) IPv6-over-LoRaWAN
 * Based on Contiki-NG-4.4, LoRaMac-node, libschc, ChirpStack
+* OTA via CoAP blockwise transfer 
 
 ## Introduction
-Ping between device-nodes, border-router and host is tested. lora node CoAP server is tested.(in
- 6lowpan mode, schc NO_ACK and ACK_ALWAYS mode)
+* Now OTA via CoAP blockwise transfer is tested. 
+* Ping command between node to node, node to host, node to border router is tested.
+* A hello world CoAP server on node is tested.
 
 * Contiki-NG : works as layer 3 and above of IPv6 protocol stack for both node and server side,
 and can build applications easily on top of the stack.
@@ -38,6 +40,31 @@ be used to send and receive device data.
                    +-------+     |server |    |server     |
                                  +-------+    +-----------+
 
+* OTA Memory Map:
+
+              Internal Flash 
+        +------------------------+
+        |  OTA image downloaded  |
+        +-------0x8038000--------+
+        |    Current Firmware    |
+        +-------0x8004000--------+
+        |       bootloader       | 
+        +-------0x8000000--------+  
+
+              firmware binary
+        +------------------------+
+        |  Firmware Binary Code  |
+        +-------0x0000200--------+
+        |       blank fill       |
+        +-------0x0000010--------+
+        |        metadate        |
+        +-------0x0000000--------+ 
+         metadate:
+         1. crc16 of Firmware Binary Code
+         2. Size of firmware image
+         3. uuid
+         4. firmware version number    
+
 ## howto
 
 Hardware needed: 
@@ -67,8 +94,27 @@ to setup up LoRaWAN device configuration, for now we use a classC device.
              cd examples/hello-world
              make TARGET=loramac
 
-6. Flash hello-world.hex into lora node 151.
+6. Flash hello-world.hex into lora-node-151.
 7. You can use ping command to ping each other now. Have fun!
+
+### OTA procedure
+1. install libcoap-2 on host. refer to https://github.com/obgm/libcoap
+2. start coap server on host, and put ota image on server, setup the firewall on host
+
+             coap-server -d 1
+             coap-client -m put -b 256 -f firmware-new.bin.ota coap://[::1]/ota
+
+3. make flash image and flash into lora-node-151
+
+             cd examples/lorawan-ota
+             make bootloader
+             make ota-image-example
+             make flash
+            
+4. the OTA download procedure will start automaticlly, after a long time(about an hour, the download speed is really slow!!!)
+when the full ota image is downloaded, it will automaticlly reset the system, bootloader will replace current app image
+with the downloaded ota image, then jump to the new firmware. 
+5.in our example, the new firmware will simply printout "+ota-firmware-new+" via uart.
 
 ## test picture
 1. CoAP test, lora node work as CoAP server, use CoAP client in host (6lowpan).
