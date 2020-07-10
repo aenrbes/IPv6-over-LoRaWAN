@@ -3,6 +3,7 @@
 # (WIP) IPv6-over-LoRaWAN
 * Based on Contiki-NG-4.4, LoRaMac-node, libschc, ChirpStack
 * OTA via CoAP blockwise transfer 
+* DEMO video：https://www.bilibili.com/video/BV1ih411o7Uz
 
 ## Introduction
 * Now OTA via CoAP blockwise transfer is tested. 
