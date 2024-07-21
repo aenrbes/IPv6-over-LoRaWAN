@@ -1,6 +1,8 @@
 
 
 # (WIP) IPv6-over-LoRaWAN
+Note: This project is not fully tested and is for demonstration purposes only!
+
 * Based on Contiki-NG-4.4, LoRaMac-node, libschc, ChirpStack
 * OTA via CoAP blockwise transfer 
 * DEMO video：https://www.bilibili.com/video/BV1ih411o7Uz
