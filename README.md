@@ -74,7 +74,7 @@ Hardware needed:
 
 Step:
 1. Follow instructions in Raspberry PI USB mode section in
-https://heltec-automation.readthedocs.io/zh_CN/latest/gateway/ht-m01/qucik_start.html#usb
+https://docs.heltec.org/zh_CN/gateway/ht-m01/quick_start.html#usb-mode
 to setup lora gateway.
 2. Login Raspberry, and follow instructions in https://www.chirpstack.io/guides/debian-ubuntu/
 to setup chirpstack loraserver.
