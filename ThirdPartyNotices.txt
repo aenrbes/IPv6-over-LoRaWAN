@@ -9,7 +9,7 @@ software subject to the following open source licenses.
 Contiki-NG
 ------
 
-code repository url: https://github.com/contiki-ng/contiki-ng.git
+source code repository url: https://github.com/contiki-ng/contiki-ng.git
 
 Contiki-NG is licensed under the 3-clause BSD license, the copyright for
 different parts of the code is held by different people and organizations,
@@ -50,6 +50,9 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 libschc
 ------
 
+source code repository url: 
+https://github.com/imec-idlab/libschc
+
 © Copyright 2018-2019, Bart Moons bamoons.moons@ugent.be, imec and Ghent University
 
 Some of this project code is used under the terms of the GNU General Public License,
@@ -60,6 +63,9 @@ https://www.gnu.org/licenses/gpl-3.0.nl.html
 
 LoRaMac-node
 ------
+
+source code repository url: 
+https://github.com/Lora-net/LoRaMac-node
 
 Copyright Semtech Corporation 2013. All rights reserved.
 
@@ -90,3 +96,21 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+******************************* subject 4 ***********************************
+
+limosquitto
+------
+
+source code repository url: 
+https://github.com/eclipse/mosquitto
+
+All content is the property of the respective authors or their employers.
+For more information regarding authorship of content,
+please consult the listed source code repository logs.
+
+This program and the accompanying materials are made available under the terms
+of the Eclipse Public License v2.0 which is available at 
+http://www.eclipse.org/legal/epl-v10.html, or the BSD 3 Clause license.
+
+SPDX-License-Identifier: EPL-2.0 or BSD-3-Clause
